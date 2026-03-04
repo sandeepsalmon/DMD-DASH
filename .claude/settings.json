@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/sandeepsalmon/Downloads/Claude UX Skill/**)",
+      "Read(//Users/sandeepsalmon/Downloads/**)",
+      "Bash(npx vite build)",
+      "Bash(wc -l \"/Users/sandeepsalmon/Downloads/work/Docket /random/05. Demand Dashboard/2. feature email agentic/src/app/components/\"*.tsx)",
+      "WebFetch(domain:www.hubspot.com)",
+      "WebFetch(domain:www.gartner.com)",
+      "WebFetch(domain:www.klipfolio.com)",
+      "WebFetch(domain:blog.hubspot.com)",
+      "WebFetch(domain:www.demandbase.com)",
+      "WebFetch(domain:www.salesforce.com)",
+      "WebFetch(domain:www.cognism.com)",
+      "WebFetch(domain:www.metadata.io)",
+      "WebFetch(domain:www.mailchimp.com)",
+      "Bash(timeout 8 npx vite --port 5174)",
+      "mcp__figma__figma_get_status",
+      "mcp__figma__figma_take_screenshot",
+      "mcp__figma__figma_get_file_data",
+      "mcp__figma__figma_execute",
+      "mcp__figma__figma_capture_screenshot",
+      "mcp__figma__figma_get_selection",
+      "Bash(npx vite dev --port 5174)",
+      "Bash(lsof -i :5174)",
+      "Bash(gh auth status)"
+    ]
+  }
+}
