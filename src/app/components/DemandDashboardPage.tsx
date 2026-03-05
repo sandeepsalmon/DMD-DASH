@@ -300,16 +300,45 @@ function NurtureFunnel({ accounts }: { accounts: AccountInsight[] }) {
   );
 }
 
-// ── Agent activity feed ──────────────────────────────────────────────────
+// ── AI Insights ──────────────────────────────────────────────────────────
 
-const AGENT_FEED = [
-  { time: "2h ago", agent: "Email", icon: "calendar", text: "Sarah Chen booked a meeting after Email 2", highlight: true },
-  { time: "3h ago", agent: "Email", icon: "checkmark", text: "Tom Liu confirmed meeting from booking link", highlight: true },
-  { time: "5h ago", agent: "Email", icon: "flash", text: "Pre-send: James Wong CTA upgraded → Booking link", highlight: false },
-  { time: "Today", agent: "Conv", icon: "robot", text: "Dave Kim asked about API integrations (4 min session)", highlight: false },
-  { time: "Today", agent: "Email", icon: "alert", text: "Anna Kumar: high engagement, no meeting — AE recommended", highlight: false },
-  { time: "Yesterday", agent: "Email", icon: "mail", text: "Segment B Email 1 sent to 10 leads (70% open rate)", highlight: false },
-  { time: "Yesterday", agent: "Conv", icon: "robot", text: "Mike Ross: general inquiry about platform (2 min)", highlight: false },
+const AI_INSIGHTS = [
+  {
+    type: "opportunity" as const,
+    title: "3 accounts approaching decision stage",
+    description: "Acme Corp, Datadog, and CloudBase all show high engagement velocity — email open rates above 63% with meetings booked. Consider AE follow-up to accelerate close.",
+    impact: "high" as const,
+  },
+  {
+    type: "risk" as const,
+    title: "Engagement drop-off detected in Segment B",
+    description: "MegaCorp and 2 other Segment B accounts show declining open rates between Email 1 and Email 2. Consider A/B testing subject lines or adjusting send cadence.",
+    impact: "medium" as const,
+  },
+  {
+    type: "pattern" as const,
+    title: "Pre-send CTA upgrades driving 2x meeting rate",
+    description: "Leads who received an upgraded CTA before send (like James Wong) book meetings at 2x the rate. The AI agent is already applying this pattern to new sends.",
+    impact: "high" as const,
+  },
+  {
+    type: "action" as const,
+    title: "Anna Kumar ready for human handoff",
+    description: "100% email engagement (every open, every click) but no meeting booked after 4 emails. Pattern suggests CTA isn't the issue — she likely needs a direct AE outreach.",
+    impact: "high" as const,
+  },
+  {
+    type: "pattern" as const,
+    title: "Conversational sessions correlate with faster closes",
+    description: "Accounts with 2+ conversational agent sessions move to decision stage 40% faster. Only 3 of 10 accounts have engaged with the conversational agent — consider targeted prompts.",
+    impact: "medium" as const,
+  },
+  {
+    type: "risk" as const,
+    title: "TechFlow and LogiCorp going cold",
+    description: "Both accounts show zero engagement in last 2 days with declining trend. TechFlow's 6-month evaluation window is closing — a re-engagement sequence is recommended.",
+    impact: "low" as const,
+  },
 ];
 
 // ── Main Dashboard ───────────────────────────────────────────────────────
@@ -529,38 +558,58 @@ export function DemandDashboardPage() {
               </div>
             </div>
 
-            {/* ── Recent Agent Activity Feed ── */}
+            {/* ── AI Insights (AI Intel) ── */}
             <div className="border border-[#e9e9e7] rounded-xl mb-6 overflow-hidden">
               <button
                 onClick={() => setFeedExpanded(!feedExpanded)}
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#fafaf9] transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon icon={SparklesIcon} size={13} color="#f59e0b" />
+                  <HugeiconsIcon icon={SparklesIcon} size={13} color="#8b5cf6" />
                   <span className="text-[12px] text-foreground" style={{ fontWeight: 500 }}>
-                    Recent Agent Activity
+                    AI Insights
                   </span>
                   <span className="text-[10px] text-[#9b9a97] bg-[#f4f4f2] px-1.5 py-0.5 rounded-full tabular-nums" style={{ fontWeight: 500 }}>
-                    {AGENT_FEED.length}
+                    {AI_INSIGHTS.length}
                   </span>
                 </div>
                 {feedExpanded ? <ChevronDown size={14} className="text-[#9b9a97]" /> : <ChevronRight size={14} className="text-[#9b9a97]" />}
               </button>
               {feedExpanded && (
                 <div className="px-4 pb-3 space-y-0 border-t border-[#e9e9e7]">
-                  {AGENT_FEED.map((item, i) => (
-                    <div key={i} className="flex items-start gap-3 py-2.5 border-b border-[#e9e9e7]/40 last:border-0">
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded mt-0.5 shrink-0 ${item.agent === "Conv" ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"}`} style={{ fontWeight: 600 }}>
-                        {item.agent}
-                      </span>
-                      <p className={`text-[12px] flex-1 ${item.highlight ? "text-foreground" : "text-[#6b6a67]"}`} style={{ fontWeight: item.highlight ? 500 : 400, lineHeight: 1.5 }}>
-                        {item.text}
-                      </p>
-                      <span className="text-[10px] text-[#9b9a97] shrink-0 mt-0.5" style={{ fontWeight: 400 }}>
-                        {item.time}
-                      </span>
-                    </div>
-                  ))}
+                  {AI_INSIGHTS.map((insight, i) => {
+                    const typeConfig = {
+                      opportunity: { label: "Opportunity", bg: "bg-green-50", text: "text-green-700" },
+                      risk: { label: "Risk", bg: "bg-red-50", text: "text-red-600" },
+                      pattern: { label: "Pattern", bg: "bg-purple-50", text: "text-purple-700" },
+                      action: { label: "Action", bg: "bg-blue-50", text: "text-blue-700" },
+                    };
+                    const impactConfig = {
+                      high: { dot: "bg-red-400" },
+                      medium: { dot: "bg-amber-400" },
+                      low: { dot: "bg-slate-300" },
+                    };
+                    const tc = typeConfig[insight.type];
+                    const ic = impactConfig[insight.impact];
+                    return (
+                      <div key={i} className="flex items-start gap-3 py-3 border-b border-[#e9e9e7]/40 last:border-0">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded mt-0.5 shrink-0 ${tc.bg} ${tc.text}`} style={{ fontWeight: 600 }}>
+                          {tc.label}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ic.dot}`} />
+                            <p className="text-[12px] text-foreground" style={{ fontWeight: 500, lineHeight: 1.4 }}>
+                              {insight.title}
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-[#6b6a67] ml-3" style={{ fontWeight: 400, lineHeight: 1.5 }}>
+                            {insight.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
