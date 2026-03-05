@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import type { CampaignModeState, Lead } from "../types";
+import type { CampaignModeState, Lead, SuggestedCampaignContext } from "../types";
 import { LEADS } from "../types";
 import { useCampaignState } from "./hooks/useCampaignState";
 import { CampaignListPanelV2 } from "./CampaignListPanelV2";
@@ -14,9 +14,17 @@ interface Props {
   initialState: CampaignModeState;
   onGoHome: () => void;
   onCampaignLaunched: () => void;
+  onboardingMode?: "new" | "suggested";
+  suggestedCampaign?: SuggestedCampaignContext | null;
 }
 
-export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: Props) {
+export function CampaignModeV2({
+  initialState,
+  onGoHome,
+  onCampaignLaunched,
+  onboardingMode = "new",
+  suggestedCampaign = null,
+}: Props) {
   const { state, marketingAgentAccepted, handleStart, handleMarketingAgentDecided, handleApproveAndLaunch } =
     useCampaignState(initialState);
 
@@ -25,12 +33,16 @@ export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: P
   const [chatPreFill, setChatPreFill] = useState("");
   const [activeTab, setActiveTab] = useState<RightPanelTab>("overview");
   const [isPaused, setIsPaused] = useState(false);
+  const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false);
   // Queue for prompts sent from the right panel to the chat
   const [pendingChatPrompt, setPendingChatPrompt] = useState<string | null>(null);
   const { setLeftPanel, setRightPanel } = useLayoutPanels();
 
   const isLaunched = state === "launched" || state === "running";
-  const isNewCampaign = initialState === "initial" && !isLaunched;
+  const isNewCampaign = onboardingMode === "new" && initialState === "initial" && !isLaunched;
+  const campaignName = isNewCampaign
+    ? "New Campaign"
+    : suggestedCampaign?.title ?? "Re-engage Stalled Pipeline Deals";
 
   const handleTogglePause = useCallback(() => {
     setIsPaused((p) => {
@@ -64,7 +76,7 @@ export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: P
       setRightPanel(
         <ArtifactPanel
           campaignState={state}
-          campaignName={isNewCampaign ? "New Campaign" : "Re-engage Stalled Pipeline Deals"}
+          campaignName={campaignName}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onLeadClick={(lead) => setSelectedLead(lead)}
@@ -77,7 +89,7 @@ export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: P
         />
       );
     }
-  }, [state, activeTab, setRightPanel, marketingAgentAccepted, isPaused, handleTogglePause, handleExplainInChat]);
+  }, [state, activeTab, setRightPanel, marketingAgentAccepted, isPaused, handleTogglePause, handleExplainInChat, campaignName]);
 
   // Clean up panels on unmount
   useEffect(() => {
@@ -94,15 +106,32 @@ export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: P
 
   const handlePromptClick = (prompt: string) => {
     if (prompt === "Approve & Launch") {
-      handleApproveAndLaunch(() => {
-        onCampaignLaunched();
-      });
+      setLaunchConfirmOpen(true);
     }
+  };
+
+  const handleConfirmLaunch = () => {
+    setLaunchConfirmOpen(false);
+    handleApproveAndLaunch(() => {
+      onCampaignLaunched();
+    });
   };
 
   const handleSwitchTab = (tab: RightPanelTab) => {
     setActiveTab(tab);
   };
+
+  useEffect(() => {
+    if (state === "launched" || state === "running") {
+      setActiveTab("overview");
+    }
+  }, [state]);
+
+  useEffect(() => {
+    if (state !== "plan-ready") {
+      setLaunchConfirmOpen(false);
+    }
+  }, [state]);
 
   const handleTweakInChat = (leadName: string, company: string) => {
     setSelectedLead(null);
@@ -134,6 +163,8 @@ export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: P
         isPaused={isPaused}
         pendingPrompt={pendingChatPrompt}
         onPromptConsumed={handleChatPromptConsumed}
+        onboardingMode={onboardingMode}
+        suggestedCampaign={suggestedCampaign}
       />
 
       {selectedLead && (
@@ -152,6 +183,88 @@ export function CampaignModeV2({ initialState, onGoHome, onCampaignLaunched }: P
             setChatPreFill(`For ${name} (${company}): `);
           }}
         />
+      )}
+
+      {launchConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[90] bg-black/45 flex items-center justify-center p-6"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setLaunchConfirmOpen(false);
+          }}
+        >
+          <div
+            className="w-[min(92vw,560px)] rounded-2xl border border-[#e9e9e7] bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[#e9e9e7] bg-[#fafaf9]">
+              <p className="text-[14px] text-foreground" style={{ fontWeight: 600 }}>
+                Confirm Campaign Launch
+              </p>
+              <p className="text-[11px] text-[#9b9a97] mt-1" style={{ fontWeight: 400 }}>
+                Here are the campaign settings. Everything correct?
+              </p>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Campaign</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>{campaignName}</p>
+                </div>
+                <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Audience</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>34 leads</p>
+                </div>
+                <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Sequence</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>3 emails (Day 0, 3, 7)</p>
+                </div>
+                <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Conversational Agent</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>
+                    {marketingAgentAccepted ? "Enabled" : "Disabled"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[#e9e9e7] bg-white px-3 py-2.5">
+                <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Send timing</p>
+                <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 400 }}>
+                  Emails are sent in each prospect&apos;s local-time window based on campaign configuration.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 border-t border-[#e9e9e7] bg-white flex items-center justify-between gap-2">
+              <button
+                onClick={() => {
+                  setLaunchConfirmOpen(false);
+                  setActiveTab("emails");
+                }}
+                className="text-[11px] px-3 py-1.5 rounded-lg border border-[#e9e9e7] bg-white hover:bg-[#f7f7f5] transition-colors"
+                style={{ fontWeight: 500 }}
+              >
+                Review Emails
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLaunchConfirmOpen(false)}
+                  className="text-[11px] px-3 py-1.5 rounded-lg border border-[#e9e9e7] bg-white hover:bg-[#f7f7f5] transition-colors"
+                  style={{ fontWeight: 500 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmLaunch}
+                  className="text-[11px] px-3 py-1.5 rounded-lg bg-foreground text-white hover:opacity-90 transition-opacity"
+                  style={{ fontWeight: 500 }}
+                >
+                  Approve & Launch
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

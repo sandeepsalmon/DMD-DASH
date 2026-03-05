@@ -19,6 +19,25 @@ const STATUS_CONFIG: Record<string, { text: string; iconKey: string; iconColor: 
   "pre-send-upgrade": { text: "Pre-send upgrade", iconKey: "checkmark", iconColor: "#22c55e" },
 };
 
+function isAssignedToAE(lead: Lead): boolean {
+  const activityText = lead.activity.map((item) => item.description).join(" ").toLowerCase();
+  const contextText = `${lead.warmContext} ${lead.agentNotes}`.toLowerCase();
+
+  const aeAssignmentSignals = [
+    "assigned to deal owner",
+    "assigned to ae",
+    "handoff to ae",
+    "meeting booked with ae",
+    "meeting confirmed",
+    "booked with ae",
+    "escalated to ae",
+  ];
+
+  return aeAssignmentSignals.some((signal) =>
+    activityText.includes(signal) || contextText.includes(signal),
+  );
+}
+
 function ScoreIndicator({ level }: { level: string }) {
   if (level === "hot") return <HugeiconsIcon icon={FireIcon} size={11} color="#ef4444" />;
   const color = level === "warm" ? "#f59e0b" : "#22c55e";
@@ -39,21 +58,29 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Sub-header */}
       <div className="px-5 py-3 flex items-center justify-between border-b border-[#e9e9e7] shrink-0">
-        <div className="flex items-center bg-[#f4f4f2] rounded-lg p-0.5 gap-0.5">
-          {(["leads", "accounts"] as LeadsView[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setLeadsView(v)}
-              className={`px-3.5 py-1.5 rounded-md text-[11px] capitalize transition-all ${
-                leadsView === v
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-[#9b9a97] hover:text-foreground/70"
-              }`}
-              style={{ fontWeight: leadsView === v ? 500 : 400 }}
-            >
-              {v}
-            </button>
-          ))}
+        <div>
+          <p className="text-[11px] text-foreground mb-1" style={{ fontWeight: 600 }}>
+            Audience
+          </p>
+          <div className="flex items-center bg-[#f4f4f2] rounded-lg p-0.5 gap-0.5">
+            {([
+              { key: "leads" as const, label: "Leads" },
+              { key: "accounts" as const, label: "Accounts" },
+            ]).map((view) => (
+              <button
+                key={view.key}
+                onClick={() => setLeadsView(view.key)}
+                className={`px-3.5 py-1.5 rounded-md text-[11px] transition-all ${
+                  leadsView === view.key
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-[#9b9a97] hover:text-foreground/70"
+                }`}
+                style={{ fontWeight: leadsView === view.key ? 500 : 400 }}
+              >
+                {view.label}
+              </button>
+            ))}
+          </div>
         </div>
         <button
           onClick={onExpandLeads}
@@ -70,13 +97,15 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
           <table className="w-full">
             <thead className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-[#e9e9e7] z-10">
               <tr>
-                {["Lead", "Seg", "Score", "Status"].map((h) => (
+                {["Lead", "Score", "Status"].map((h) => (
                   <th key={h} className="px-4 py-2.5 text-left text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {LEADS.map((lead) => (
+              {LEADS.map((lead) => {
+                const assignedToAE = isAssignedToAE(lead);
+                return (
                 <tr
                   key={lead.id}
                   onClick={() => onLeadClick(lead)}
@@ -87,21 +116,27 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
                     <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>{lead.company}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f4f4f2] text-[#6b6a67]" style={{ fontWeight: 500 }}>{lead.segment}</span>
-                  </td>
-                  <td className="px-4 py-3">
                     <span className="text-[12px] text-foreground tabular-nums flex items-center gap-1.5" style={{ fontWeight: 500 }}>
                       {lead.score} <ScoreIndicator level={lead.scoreLevel} />
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-[11px] text-[#9b9a97] max-w-[100px]" style={{ fontWeight: 400 }}>
-                    <span className="line-clamp-1 flex items-center gap-1.5">
-                      {STATUS_CONFIG[lead.status]?.iconKey && <IconFromKey iconKey={STATUS_CONFIG[lead.status].iconKey} size={11} color={STATUS_CONFIG[lead.status].iconColor} />}
-                      {STATUS_CONFIG[lead.status]?.text ?? lead.status}
-                    </span>
+                  <td className="px-4 py-3 text-[11px] text-[#9b9a97] max-w-[120px]" style={{ fontWeight: 400 }}>
+                    <div className="space-y-1">
+                      <span className="line-clamp-1 flex items-center gap-1.5">
+                        {STATUS_CONFIG[lead.status]?.iconKey && <IconFromKey iconKey={STATUS_CONFIG[lead.status].iconKey} size={11} color={STATUS_CONFIG[lead.status].iconColor} />}
+                        {STATUS_CONFIG[lead.status]?.text ?? lead.status}
+                      </span>
+                      {assignedToAE && (
+                        <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-px rounded border border-blue-200 bg-blue-50 text-blue-700">
+                          <IconFromKey iconKey="checkmark" size={9} color="#1d4ed8" />
+                          Assigned to AE
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -116,7 +151,9 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
               </tr>
             </thead>
             <tbody>
-              {accounts.map((acc) => (
+              {accounts.map((acc) => {
+                const assignedCount = acc.leads.filter((lead) => isAssignedToAE(lead)).length;
+                return (
                 <tr
                   key={acc.name}
                   onClick={() => onAccountClick?.(acc.name)}
@@ -127,6 +164,11 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
                     {acc.hotLeads > 0 && (
                       <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>{acc.hotLeads} hot lead{acc.hotLeads > 1 ? "s" : ""}</p>
                     )}
+                    {assignedCount > 0 && (
+                      <p className="text-[10px] text-blue-700" style={{ fontWeight: 500 }}>
+                        {assignedCount} assigned to AE
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-[12px] text-foreground tabular-nums" style={{ fontWeight: 500 }}>{acc.score}</td>
                   <td className="px-4 py-3 text-[12px] text-[#9b9a97] tabular-nums" style={{ fontWeight: 400 }}>{acc.leadCount}</td>
@@ -134,7 +176,8 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
                     <span className="line-clamp-1">{acc.status}</span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

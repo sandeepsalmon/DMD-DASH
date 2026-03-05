@@ -43,12 +43,12 @@ export const CAMPAIGN_QUESTIONS: CampaignQuestion[] = [
     allowCustom: true,
   },
   {
-    id: "segmentation",
-    question: "How should we segment these leads?",
+    id: "sequence-strategy",
+    question: "How should this email sequence adapt by intent?",
     options: [
-      { key: "A", label: "By engagement level (hot / warm / cold)" },
-      { key: "B", label: "By industry or company size" },
-      { key: "C", label: "Let AI decide the best segmentation" },
+      { key: "A", label: "Adaptive CTA per recipient signals" },
+      { key: "B", label: "Same sequence, tone tuned by engagement" },
+      { key: "C", label: "Let AI optimize each step automatically" },
     ],
     allowCustom: true,
   },
@@ -291,14 +291,14 @@ export function CampaignQuestions({ onComplete, onSkipAll }: Props) {
                 }`}
               >
                 <span
-                  className={`w-5 h-5 rounded flex items-center justify-center text-[11px] shrink-0 ${
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
                     isSelected
                       ? "bg-white/20 text-white"
                       : "bg-[#f0f0ee] text-[#9b9a97]"
                   }`}
                   style={{ fontWeight: 600 }}
                 >
-                  {opt.key}
+                  {isSelected ? "✓" : ""}
                 </span>
                 <span className="text-[12px]" style={{ fontWeight: isSelected ? 500 : 400 }}>
                   {opt.label}
@@ -313,10 +313,10 @@ export function CampaignQuestions({ onComplete, onSkipAll }: Props) {
               {editingCustom === currentQuestion.id ? (
                 <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white border border-foreground/20">
                   <span
-                    className="w-5 h-5 rounded flex items-center justify-center text-[11px] shrink-0 bg-[#f0f0ee] text-[#9b9a97]"
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 bg-[#f0f0ee] text-[#9b9a97]"
                     style={{ fontWeight: 600 }}
                   >
-                    D
+                    ✎
                   </span>
                   <input
                     ref={customInputRef}
@@ -348,14 +348,14 @@ export function CampaignQuestions({ onComplete, onSkipAll }: Props) {
                   }`}
                 >
                   <span
-                    className={`w-5 h-5 rounded flex items-center justify-center text-[11px] shrink-0 ${
+                    className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
                       answers[currentQuestion.id]?.isCustom
                         ? "bg-white/20 text-white"
                         : "bg-[#f0f0ee] text-[#9b9a97]"
                     }`}
                     style={{ fontWeight: 600 }}
                   >
-                    D
+                    {answers[currentQuestion.id]?.isCustom ? "✓" : "✎"}
                   </span>
                   <span className="text-[12px]" style={{ fontWeight: answers[currentQuestion.id]?.isCustom ? 500 : 400 }}>
                     {answers[currentQuestion.id]?.isCustom

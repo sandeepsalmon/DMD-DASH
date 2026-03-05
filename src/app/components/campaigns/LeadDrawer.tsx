@@ -73,7 +73,7 @@ function parseAgentNotes(text: string) {
 }
 
 export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
-  const [activeTab, setActiveTab] = useState<DrawerTab>("activity");
+  const [activeTab, setActiveTab] = useState<DrawerTab>("warm-context");
 
   const SCORE_COLOR =
     lead.scoreLevel === "hot"
@@ -149,7 +149,6 @@ export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
         <div className="flex items-center border-b border-[#e9e9e7] shrink-0 px-2">
           {(
             [
-              { key: "activity", label: "Activity" },
               { key: "warm-context", label: "Warm Context" },
               { key: "agent-activity", label: "Agent Activity" },
               { key: "transcript", label: "Transcript" },
@@ -438,28 +437,7 @@ export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
               Pause emails
             </button>
           </div>
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex-1 text-[12px] px-3.5 py-2 rounded-lg border border-[#e9e9e7] text-foreground hover:bg-[#f7f7f5] hover:border-[#c8c8c6] transition-colors"
-                  style={{ fontWeight: 400 }}
-                >
-                  Change segment
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-36">
-                {(["A", "B", "C"] as const).map((seg) => (
-                  <DropdownMenuItem
-                    key={seg}
-                    className="text-[12px] gap-2"
-                    onClick={() => toast.success(`${lead.name} moved to Segment ${seg}`)}
-                  >
-                    Segment {seg}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="flex">
             <button
               onClick={() => {
                 if (confirm(`Remove ${lead.name} from this campaign?`)) {
@@ -467,7 +445,7 @@ export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
                   onClose();
                 }
               }}
-              className="text-[12px] px-3.5 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              className="w-full text-[12px] px-3.5 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
               style={{ fontWeight: 400 }}
             >
               Remove

@@ -2,6 +2,12 @@
 
 export type AppView = "homepage" | "campaign-mode";
 export type HomepageState = "empty" | "dense";
+export interface SuggestedCampaignContext {
+  title: string;
+  description: string;
+  stats: string;
+  source: string;
+}
 export type CampaignModeState =
   | "initial"
   | "agents-running"
@@ -505,23 +511,23 @@ export const AGENT_DISCUSSION_FULL = [
   {
     agent: "Lead Analyst",
     message:
-      "Agreed. I'll segment into 3 groups: Hot (pricing visitors), Warm (some engagement), and Re-engage (closed-lost). Scoring shows the Hot group averages 78 ICP score.",
+      "Agreed. I'll map recipients into one adaptive sequence and adjust CTA/tone at each step based on intent. Highest-intent leads should get direct booking CTAs first.",
   },
   {
     agent: "Email Strategist",
     message:
-      "Final plan: Segment A gets 2 emails in 3 days. Segment B gets 3 emails in 7 days. Segment C gets 3 emails in 10 days with sub-segmentation by lost reason. Each email uses per-lead warm context for personalization.",
+      "Final plan: one 3-step sequence. Step 1 re-engages quickly, Step 2 sends proof-driven follow-up, Step 3 closes the loop with a final CTA. Each email is personalized from warm context.",
   },
 ];
 
 export const ACTIVITY_LOG = [
-  { time: "Today 2:14pm", icon: "mail", text: "Segment A Email 2 sent to 16 leads" },
+  { time: "Today 2:14pm", icon: "mail", text: "Email 2 sent to 16 leads" },
   { time: "Today 2:01pm", icon: "robot", text: "Pre-send: James Wong CTA upgraded from Case Study → Booking link" },
   { time: "Today 1:45pm", icon: "calendar", text: "Meeting booked: James Wong (CloudBase)" },
   { time: "Today 10:30am", icon: "calendar", text: "Meeting booked: Tom Liu (Datadog)" },
-  { time: "Yesterday 9:05am", icon: "mail", text: "Segment B Email 1 sent to 10 leads" },
-  { time: "Yesterday 9:00am", icon: "mail", text: "Segment C Email 1 sent to 6 leads" },
+  { time: "Yesterday 9:05am", icon: "mail", text: "Email 1 proof variant sent to 10 leads" },
+  { time: "Yesterday 9:00am", icon: "mail", text: "Email 1 re-engagement variant sent to 6 leads" },
   { time: "Day 1 9:02am", icon: "calendar", text: "Meeting booked: Sarah Chen (Acme Corp)" },
-  { time: "Day 1 9:00am", icon: "mail", text: "Segment A Email 1 sent to 18 leads" },
+  { time: "Day 1 9:00am", icon: "mail", text: "Email 1 sent to 18 high-intent leads" },
   { time: "Day 1 8:55am", icon: "robot", text: "Campaign launched: Re-engage Stalled Pipeline Deals" },
 ];

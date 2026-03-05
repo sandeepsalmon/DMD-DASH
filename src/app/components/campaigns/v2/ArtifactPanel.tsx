@@ -19,10 +19,9 @@ import type { CampaignModeState, Lead } from "../types";
 import { OverviewTab } from "./artifacts/OverviewTab";
 import { EmailPlanArtifact } from "./artifacts/EmailPlanArtifact";
 import { LeadsArtifact } from "./artifacts/LeadsArtifact";
-import { ActivityArtifact } from "./artifacts/ActivityArtifact";
 import { toast } from "sonner";
 
-export type RightPanelTab = "overview" | "emails" | "leads" | "activity";
+export type RightPanelTab = "overview" | "emails" | "leads";
 
 interface Props {
   campaignState: CampaignModeState;
@@ -62,21 +61,12 @@ export function ArtifactPanel({
   const isLaunched = campaignState === "launched" || campaignState === "running";
   const hasEmails = campaignState === "plan-ready" || isLaunched;
   const hasLeads = campaignState !== "initial";
-  const hasActivity = isLaunched;
 
   const tabs: { key: RightPanelTab; label: string }[] = [
     { key: "overview", label: "Overview" },
   ];
   if (hasEmails) tabs.push({ key: "emails", label: "Emails" });
-  if (hasLeads) tabs.push({ key: "leads", label: "Leads" });
-  if (hasActivity) tabs.push({ key: "activity", label: "Activity" });
-
-  // Auto-switch to emails tab when plan becomes ready
-  useEffect(() => {
-    if (campaignState === "plan-ready" && currentTab === "overview") {
-      handleTabChange("emails");
-    }
-  }, [campaignState]);
+  if (hasLeads) tabs.push({ key: "leads", label: "Audience" });
 
   const handleTabChange = (tab: RightPanelTab) => {
     setInternalTab(tab);
@@ -190,12 +180,11 @@ export function ArtifactPanel({
       <div className="flex-1 overflow-hidden flex flex-col">
         {resolvedTab === "overview" && <OverviewTab campaignState={campaignState} onExplainInChat={onExplainInChat} />}
         {resolvedTab === "emails" && hasEmails && (
-          <EmailPlanArtifact campaignState={campaignState} marketingAgentCreated={marketingAgentCreated} />
+          <EmailPlanArtifact campaignState={campaignState} marketingAgentCreated={marketingAgentCreated} onLeadClick={onLeadClick} />
         )}
         {resolvedTab === "leads" && hasLeads && (
           <LeadsArtifact onLeadClick={onLeadClick} onExpandLeads={onExpandLeads} onAccountClick={onAccountClick} />
         )}
-        {resolvedTab === "activity" && hasActivity && <ActivityArtifact />}
       </div>
     </div>
   );

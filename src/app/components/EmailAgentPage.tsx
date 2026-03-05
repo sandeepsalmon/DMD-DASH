@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   HugeiconsIcon,
   SparklesIcon,
@@ -8,11 +8,18 @@ import {
   FlashIcon,
 } from "./campaigns/icons";
 import { IconFromKey } from "./campaigns/icons";
-import type { AppView, HomepageState, CampaignModeState } from "./campaigns/types";
+import type {
+  AppView,
+  HomepageState,
+  CampaignModeState,
+  SuggestedCampaignContext,
+} from "./campaigns/types";
 // import { CampaignMode } from "./campaigns/CampaignMode";
 import { CampaignModeV2 } from "./campaigns/v2/CampaignModeV2";
 
-const suggestedCampaigns = [
+type CampaignEntryMode = "new" | "suggested";
+
+const suggestedCampaigns: SuggestedCampaignContext[] = [
   {
     title: "Re-engage Stalled Pipeline Deals",
     description:
@@ -34,15 +41,29 @@ export function EmailAgentPage() {
   const [homepageState, setHomepageState] = useState<HomepageState>("empty");
   const [campaignModeInitialState, setCampaignModeInitialState] =
     useState<CampaignModeState>("initial");
+  const [campaignEntryMode, setCampaignEntryMode] = useState<CampaignEntryMode>("new");
+  const [selectedSuggestedCampaign, setSelectedSuggestedCampaign] =
+    useState<SuggestedCampaignContext | null>(null);
   const [chatInput, setChatInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSuggestedCampaignClick = (title: string) => {
+  const handleSuggestedCampaignClick = (campaign: SuggestedCampaignContext) => {
+    setCampaignEntryMode("suggested");
+    setSelectedSuggestedCampaign(campaign);
+    setCampaignModeInitialState("initial");
+    setCampaignView("campaign-mode");
+  };
+
+  const handleCreateNewCampaignClick = () => {
+    setCampaignEntryMode("new");
+    setSelectedSuggestedCampaign(null);
     setCampaignModeInitialState("initial");
     setCampaignView("campaign-mode");
   };
 
   const handleActiveCampaignClick = () => {
+    setCampaignEntryMode("new");
+    setSelectedSuggestedCampaign(null);
     setCampaignModeInitialState("running");
     setCampaignView("campaign-mode");
   };
@@ -75,6 +96,8 @@ export function EmailAgentPage() {
         initialState={campaignModeInitialState}
         onGoHome={handleGoHome}
         onCampaignLaunched={handleCampaignLaunched}
+        onboardingMode={campaignEntryMode}
+        suggestedCampaign={selectedSuggestedCampaign}
       />
     );
   }
@@ -89,7 +112,11 @@ export function EmailAgentPage() {
         >
           Email Agent
         </span>
-        <button className="flex items-center gap-1.5 h-7 px-3 rounded-md bg-foreground text-white text-[12px] hover:bg-foreground/90 transition-colors" style={{ fontWeight: 500 }}>
+        <button
+          onClick={handleCreateNewCampaignClick}
+          className="flex items-center gap-1.5 h-7 px-3 rounded-md bg-foreground text-white text-[12px] hover:bg-foreground/90 transition-colors"
+          style={{ fontWeight: 500 }}
+        >
           <Plus size={13} strokeWidth={2} />
           Create Campaign
         </button>
@@ -305,7 +332,7 @@ export function EmailAgentPage() {
                   {available.map((campaign) => (
                     <button
                       key={campaign.title}
-                      onClick={() => handleSuggestedCampaignClick(campaign.title)}
+                      onClick={() => handleSuggestedCampaignClick(campaign)}
                       className="campaign-card-glow group text-left p-[1.5px] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                     >
                       <div className="glow-spinner" />
@@ -349,7 +376,7 @@ export function EmailAgentPage() {
 
                   {/* Create New Campaign Card */}
                   <button
-                    onClick={() => handleSuggestedCampaignClick("")}
+                    onClick={handleCreateNewCampaignClick}
                     className="group text-left rounded-xl border-[1.5px] border-dashed border-[#e9e9e7] p-4 flex flex-col hover:border-[#c8c8c6] hover:bg-[#fafaf9] transition-colors"
                   >
                     <span

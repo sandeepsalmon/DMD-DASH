@@ -7,6 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   BarChart3,
+  Palette,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 
@@ -21,6 +22,8 @@ export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const brandBookTooltip =
+    "Brand Book: add your brand colors, backgrounds, and visual style so agent-generated slides automatically match your branding.";
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -95,6 +98,31 @@ export function Sidebar() {
             <span className="text-[13px] whitespace-nowrap" style={{ fontWeight: 400 }}>Collapse</span>
           )}
         </button>
+      </div>
+
+      {/* Brand Book (non-clickable info item) */}
+      <div className={`shrink-0 overflow-hidden ${expanded ? "px-2 pt-1" : "px-1.5 pt-1"}`}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              aria-disabled="true"
+              className="flex items-center gap-2.5 h-8 px-2 w-full rounded-md text-foreground/55 bg-black/[0.02] cursor-default"
+            >
+              <Palette size={15} strokeWidth={1.6} className="shrink-0" />
+              <span
+                className={`text-[13px] whitespace-nowrap transition-opacity duration-200 ${
+                  expanded ? "opacity-100" : "opacity-0"
+                }`}
+                style={{ fontWeight: 400 }}
+              >
+                Brand Book
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8} className="max-w-[260px] leading-relaxed">
+            {brandBookTooltip}
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Bottom — user */}

@@ -29,7 +29,7 @@ const INITIAL_ARTIFACTS: Artifact[] = [
   {
     id: "leads",
     type: "leads",
-    title: "Leads",
+    title: "Audience",
     createdAt: Date.now() + 1,
     state: "ready",
   },

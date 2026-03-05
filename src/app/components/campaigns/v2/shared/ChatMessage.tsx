@@ -1,6 +1,22 @@
 import type { ReactNode } from "react";
 
-export function DocketMessage({ children }: { children: ReactNode }) {
+export function DocketMessage({
+  children,
+  showAvatar = true,
+}: {
+  children: ReactNode;
+  showAvatar?: boolean;
+}) {
+  if (!showAvatar) {
+    return (
+      <div className="pl-10">
+        <div className="bg-[#fafaf9] rounded-2xl rounded-tl-md px-4 py-3.5 border border-[#eeeeec]">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start gap-3">
       <div className="w-7 h-7 rounded-full bg-foreground flex items-center justify-center shrink-0 mt-1">

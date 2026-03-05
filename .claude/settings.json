@@ -23,7 +23,10 @@
       "mcp__figma__figma_get_selection",
       "Bash(npx vite dev --port 5174)",
       "Bash(lsof -i :5174)",
-      "Bash(gh auth status)"
+      "Bash(gh auth status)",
+      "Bash(gh repo create DMD-DASH --public --source=. --remote=origin --push)",
+      "Bash(npx vercel --version)",
+      "Bash(npx vercel --prod --yes)"
     ]
   }
 }

@@ -64,7 +64,7 @@ export function OverviewTab({ campaignState, onExplainInChat }: Props) {
               { label: "Total Leads", value: "34", benchmark: "" },
               { label: "Pipeline at Risk", value: "$180K", benchmark: "" },
               { label: "Pricing Visitors", value: "18", benchmark: "53% of leads" },
-              { label: "Agent Convos", value: "6", benchmark: "" },
+              { label: "Recent Touchpoints", value: "6", benchmark: "" },
             ]
         ).map((stat) => (
           <div key={stat.label} className="border border-[#e9e9e7] rounded-xl p-3.5 bg-white">
@@ -75,21 +75,21 @@ export function OverviewTab({ campaignState, onExplainInChat }: Props) {
         ))}
       </div>
 
-      {/* Segment performance with mini-bars */}
+      {/* Sequence step performance with mini-bars */}
       {isLaunched && (
         <div>
-          <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider mb-3" style={{ fontWeight: 500 }}>By Segment</p>
+          <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider mb-3" style={{ fontWeight: 500 }}>By Sequence Step</p>
           <div className="space-y-2.5">
             {[
-              { seg: "A", name: "Hot", color: "#ef4444", sent: isDay3 ? 18 : 18, openPct: isDay3 ? 78 : 0, meetings: isDay3 ? 2 : 0 },
-              { seg: "B", name: "Warm", color: "#f59e0b", sent: isDay3 ? 20 : 0, openPct: isDay3 ? 70 : 0, meetings: isDay3 ? 1 : 0 },
-              { seg: "C", name: "Re-engage", color: "#22c55e", sent: isDay3 ? 6 : 0, openPct: isDay3 ? 50 : 0, meetings: 0 },
+              { step: "1", name: "Re-engagement opener", color: "#2563eb", sent: isDay3 ? 34 : 18, openPct: isDay3 ? 71 : 0, meetings: isDay3 ? 3 : 0 },
+              { step: "2", name: "Proof follow-up", color: "#f59e0b", sent: isDay3 ? 16 : 0, openPct: isDay3 ? 63 : 0, meetings: isDay3 ? 0 : 0 },
+              { step: "3", name: "Final nudge", color: "#22c55e", sent: 0, openPct: 0, meetings: 0 },
             ].map((row) => (
-              <div key={row.seg} className="border border-[#e9e9e7] rounded-xl px-4 py-3 bg-white">
+              <div key={row.step} className="border border-[#e9e9e7] rounded-xl px-4 py-3 bg-white">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ background: row.color }} />
-                    <p className="text-[12px] text-foreground" style={{ fontWeight: 500 }}>Seg {row.seg}: {row.name}</p>
+                    <p className="text-[12px] text-foreground" style={{ fontWeight: 500 }}>Step {row.step}: {row.name}</p>
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-[#9b9a97] tabular-nums" style={{ fontWeight: 400 }}>
                     <span>{row.sent} sent</span>
@@ -120,7 +120,7 @@ export function OverviewTab({ campaignState, onExplainInChat }: Props) {
           </button>
           {sourcesOpen && (
             <div className="mt-2 pl-5 space-y-1 animate-in fade-in duration-200">
-              {["HubSpot Pipeline: 34 stalled deals", "Web Analytics: 18 pricing page visitors", "Agent History: 6 prior conversations", "Email History: 22 received marketing emails"].map((s) => (
+              {["HubSpot Pipeline: 34 stalled deals", "Web Analytics: 18 pricing page visitors", "Sales Activity: 6 CRM touchpoints", "Email History: 22 received marketing emails"].map((s) => (
                 <p key={s} className="text-[11px] text-[#9b9a97]" style={{ fontWeight: 400 }}>{s}</p>
               ))}
             </div>
@@ -134,22 +134,89 @@ export function OverviewTab({ campaignState, onExplainInChat }: Props) {
 // ── Action Center — Interactive insight cards ──
 
 function ActionCenter({ onExplainInChat }: { onExplainInChat?: (prompt: string) => void }) {
+  const [visibleCards, setVisibleCards] = useState({
+    ctaMismatch: true,
+    aeHandoff: true,
+    preSendUpgrade: true,
+  });
+
+  const visibleCount = Object.values(visibleCards).filter(Boolean).length;
+
+  const handleDiscardCard = (key: keyof typeof visibleCards) => {
+    setVisibleCards((current) => ({ ...current, [key]: false }));
+  };
+
+  const handleDiscardAll = () => {
+    setVisibleCards({
+      ctaMismatch: false,
+      aeHandoff: false,
+      preSendUpgrade: false,
+    });
+    toast.success("Dismissed all Needs Attention cards");
+  };
+
+  const handleRestore = () => {
+    setVisibleCards({
+      ctaMismatch: true,
+      aeHandoff: true,
+      preSendUpgrade: true,
+    });
+  };
+
   return (
     <div className="space-y-2">
-      <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>
-        Needs Attention
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>
+          Needs Attention
+        </p>
+        {visibleCount > 0 && (
+          <button
+            onClick={handleDiscardAll}
+            className="text-[10px] px-2 py-1 rounded-md border border-[#e0dfdd] text-[#6b6a67] bg-white hover:bg-[#f7f7f5] transition-colors"
+            style={{ fontWeight: 500 }}
+          >
+            Discard all
+          </button>
+        )}
+      </div>
 
-      <CTAMismatchCard onExplainInChat={onExplainInChat} />
-      <AEEscalationCard />
-      <PreSendUpgradeCard />
+      {visibleCards.ctaMismatch && (
+        <CTAMismatchCard onExplainInChat={onExplainInChat} onDismiss={() => handleDiscardCard("ctaMismatch")} />
+      )}
+      {visibleCards.aeHandoff && (
+        <AEEscalationCard onDismiss={() => handleDiscardCard("aeHandoff")} />
+      )}
+      {visibleCards.preSendUpgrade && (
+        <PreSendUpgradeCard onDismiss={() => handleDiscardCard("preSendUpgrade")} />
+      )}
+
+      {visibleCount === 0 && (
+        <div className="border border-[#e9e9e7] rounded-xl bg-white px-4 py-3 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
+            All attention cards dismissed.
+          </p>
+          <button
+            onClick={handleRestore}
+            className="text-[10px] px-2.5 py-1 rounded-md border border-[#e9e9e7] text-foreground hover:bg-[#f7f7f5] transition-colors"
+            style={{ fontWeight: 500 }}
+          >
+            Restore
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── CTA Mismatch Card ──
 
-function CTAMismatchCard({ onExplainInChat }: { onExplainInChat?: (prompt: string) => void }) {
+function CTAMismatchCard({
+  onExplainInChat,
+  onDismiss,
+}: {
+  onExplainInChat?: (prompt: string) => void;
+  onDismiss: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [switched, setSwitched] = useState(false);
@@ -179,7 +246,7 @@ function CTAMismatchCard({ onExplainInChat }: { onExplainInChat?: (prompt: strin
         <span className="text-amber-500 mt-0.5 text-[12px]">⚠</span>
         <div className="flex-1 min-w-0">
           <p className="text-[12px] text-foreground" style={{ fontWeight: 500 }}>
-            4 Segment B leads: CTA mismatch
+            4 leads in Email 2: CTA mismatch
           </p>
           <p className="text-[11px] text-[#9b9a97] mt-0.5" style={{ fontWeight: 400 }}>
             Opening emails but not clicking — suggest switching CTAs
@@ -187,6 +254,19 @@ function CTAMismatchCard({ onExplainInChat }: { onExplainInChat?: (prompt: strin
         </div>
         <HugeiconsIcon icon={ArrowDown01Icon} size={10} className={`text-[#9b9a97] shrink-0 mt-1 transition-transform ${expanded ? "" : "rotate-[-90deg]"}`} />
       </button>
+
+      <div className="px-4 -mt-1 pb-2">
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onDismiss();
+          }}
+          className="text-[10px] px-2.5 py-1 rounded-md border border-amber-200 text-amber-700 bg-white hover:bg-amber-50 transition-colors"
+          style={{ fontWeight: 500 }}
+        >
+          Discard card
+        </button>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-4 animate-in fade-in duration-200">
@@ -236,7 +316,7 @@ function CTAMismatchCard({ onExplainInChat }: { onExplainInChat?: (prompt: strin
                 </button>
                 <button
                   onClick={() => {
-                    onExplainInChat?.("Explain the CTA mismatch for the 4 Segment B leads in detail — why are they not clicking, and what CTAs would work better?");
+                    onExplainInChat?.("Explain the CTA mismatch for these 4 leads in Email 2 in detail — why are they not clicking, and what CTAs would work better?");
                   }}
                   className="text-[11px] px-3 py-1.5 rounded-lg border border-[#e9e9e7] text-foreground hover:bg-[#f7f7f5] hover:border-[#c8c8c6] transition-colors"
                   style={{ fontWeight: 400 }}
@@ -261,7 +341,7 @@ function CTAMismatchCard({ onExplainInChat }: { onExplainInChat?: (prompt: strin
 
 // ── AE Escalation Card ──
 
-function AEEscalationCard() {
+function AEEscalationCard({ onDismiss }: { onDismiss: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [handoffStep, setHandoffStep] = useState(0); // 0=idle, 1=connecting, 2=connected, 3=sending, 4=sent
 
@@ -300,6 +380,19 @@ function AEEscalationCard() {
         </div>
         <HugeiconsIcon icon={ArrowDown01Icon} size={10} className={`text-[#9b9a97] shrink-0 mt-1 transition-transform ${expanded ? "" : "rotate-[-90deg]"}`} />
       </button>
+
+      <div className="px-4 -mt-1 pb-2">
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onDismiss();
+          }}
+          className="text-[10px] px-2.5 py-1 rounded-md border border-blue-200 text-blue-700 bg-white hover:bg-blue-50 transition-colors"
+          style={{ fontWeight: 500 }}
+        >
+          Discard card
+        </button>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-4 animate-in fade-in duration-200">
@@ -372,7 +465,7 @@ function AEEscalationCard() {
 
 // ── Pre-send Upgrade Win Card ──
 
-function PreSendUpgradeCard() {
+function PreSendUpgradeCard({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="border border-green-200 rounded-xl overflow-hidden bg-green-50/50 px-4 py-3">
       <div className="flex items-start gap-2.5">
@@ -385,6 +478,13 @@ function PreSendUpgradeCard() {
             CTA auto-upgraded from Case Study → Booking link after 3 pricing page visits. Meeting confirmed.
           </p>
         </div>
+        <button
+          onClick={onDismiss}
+          className="text-[10px] px-2.5 py-1 rounded-md border border-green-200 text-green-700 bg-white hover:bg-green-50 transition-colors shrink-0"
+          style={{ fontWeight: 500 }}
+        >
+          Discard card
+        </button>
       </div>
     </div>
   );
