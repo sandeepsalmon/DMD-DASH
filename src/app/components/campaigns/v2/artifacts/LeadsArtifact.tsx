@@ -5,8 +5,9 @@ import {
   Maximize02Icon,
   FireIcon,
 } from "../../icons";
-import type { Lead } from "../../types";
+import type { Lead, Account } from "../../types";
 import { LEADS, getAccountsFromLeads } from "../../types";
+import type { CampaignData } from "../../campaignData";
 
 type LeadsView = "leads" | "accounts";
 
@@ -48,20 +49,64 @@ interface Props {
   onLeadClick: (lead: Lead) => void;
   onExpandLeads: () => void;
   onAccountClick?: (accountName: string) => void;
+  campaignData?: CampaignData;
 }
 
-export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Props) {
+function getAccountsFromLeadsList(leads: Lead[]): Account[] {
+  const map = new Map<string, Account>();
+  for (const lead of leads) {
+    if (!map.has(lead.company)) {
+      map.set(lead.company, { name: lead.company, score: lead.score, leadCount: 0, hotLeads: 0, statusKey: "", status: "", leads: [] });
+    }
+    const acc = map.get(lead.company)!;
+    acc.leadCount++;
+    if (lead.scoreLevel === "hot") acc.hotLeads++;
+    acc.leads.push(lead);
+    if (lead.score > acc.score) acc.score = lead.score;
+  }
+  for (const acc of map.values()) {
+    const hasBooked = acc.leads.some((l) => l.status === "meeting-booked");
+    const hasHigh = acc.leads.some((l) => l.status === "high-engagement");
+    if (hasBooked) { acc.status = "Meeting booked"; acc.statusKey = "meeting-booked"; }
+    else if (hasHigh) { acc.status = "High engagement"; acc.statusKey = "high-engagement"; }
+    else if (acc.leads.some((l) => l.status === "opened-no-click")) { acc.status = "Opens, no clicks"; acc.statusKey = "opened-no-click"; }
+    else { acc.status = "Low engagement"; acc.statusKey = "low"; }
+  }
+  return [...map.values()].sort((a, b) => b.score - a.score);
+}
+
+export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick, campaignData }: Props) {
   const [leadsView, setLeadsView] = useState<LeadsView>("leads");
-  const accounts = getAccountsFromLeads();
+  const campaignLeads = campaignData?.leads ?? LEADS;
+  const accounts = campaignData ? getAccountsFromLeadsList(campaignLeads) : getAccountsFromLeads();
+
+  const totalLeads = campaignLeads.length;
+  const meetingsBooked = campaignLeads.filter((l) => l.status === "meeting-booked").length;
+  const highEngagement = campaignLeads.filter((l) => l.status === "high-engagement").length;
+  const hotLeads = campaignLeads.filter((l) => l.scoreLevel === "hot").length;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Summary metrics */}
+      <div className="px-5 pt-4 pb-2 shrink-0">
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: "Total", value: totalLeads },
+            { label: "Hot", value: hotLeads },
+            { label: "Meetings", value: meetingsBooked },
+            { label: "High Engage", value: highEngagement },
+          ].map((m) => (
+            <div key={m.label} className="border border-[#e9e9e7] rounded-lg px-2.5 py-2 bg-white text-center">
+              <p className="text-[16px] text-foreground tabular-nums leading-none" style={{ fontWeight: 600 }}>{m.value}</p>
+              <p className="text-[9px] text-[#9b9a97] mt-1" style={{ fontWeight: 500 }}>{m.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Sub-header */}
       <div className="px-5 py-3 flex items-center justify-between border-b border-[#e9e9e7] shrink-0">
         <div>
-          <p className="text-[11px] text-foreground mb-1" style={{ fontWeight: 600 }}>
-            Audience
-          </p>
           <div className="flex items-center bg-[#f4f4f2] rounded-lg p-0.5 gap-0.5">
             {([
               { key: "leads" as const, label: "Leads" },
@@ -103,7 +148,7 @@ export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick }: Pr
               </tr>
             </thead>
             <tbody>
-              {LEADS.map((lead) => {
+              {campaignLeads.map((lead) => {
                 const assignedToAE = isAssignedToAE(lead);
                 return (
                 <tr

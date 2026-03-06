@@ -3,9 +3,9 @@ import type { CampaignModeState } from "../../types";
 
 interface UseCampaignStateReturn {
   state: CampaignModeState;
-  marketingAgentAccepted: boolean;
+  selectedAgentId: string | null;
   handleStart: () => void;
-  handleMarketingAgentDecided: (accepted: boolean) => void;
+  handleAgentSelected: (agentId: string | null) => void;
   handleApproveAndLaunch: (onLaunched: () => void) => void;
 }
 
@@ -13,10 +13,9 @@ export function useCampaignState(
   initialState: CampaignModeState
 ): UseCampaignStateReturn {
   const [state, setState] = useState<CampaignModeState>(initialState);
-  const [marketingAgentAccepted, setMarketingAgentAccepted] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       timersRef.current.forEach(clearTimeout);
@@ -30,13 +29,12 @@ export function useCampaignState(
 
   const handleStart = useCallback(() => {
     setState("agents-running");
-    // Chain-of-thought (3×900ms) + buffer (600ms) + agent discussion (4×1200ms) + buffer (500ms) = 8800ms
     addTimer(() => setState("agent-suggestion"), 8800);
   }, []);
 
-  const handleMarketingAgentDecided = useCallback((accepted: boolean) => {
-    setMarketingAgentAccepted(accepted);
-    const delay = accepted ? 2500 : 500;
+  const handleAgentSelected = useCallback((agentId: string | null) => {
+    setSelectedAgentId(agentId);
+    const delay = agentId ? 2500 : 500;
     addTimer(() => setState("plan-ready"), delay);
   }, []);
 
@@ -50,9 +48,9 @@ export function useCampaignState(
 
   return {
     state,
-    marketingAgentAccepted,
+    selectedAgentId,
     handleStart,
-    handleMarketingAgentDecided,
+    handleAgentSelected,
     handleApproveAndLaunch,
   };
 }

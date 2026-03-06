@@ -26,7 +26,7 @@ interface Props {
   onTweakInChat: (leadName: string, company: string) => void;
 }
 
-type DrawerTab = "activity" | "warm-context" | "agent-activity" | "transcript";
+type DrawerTab = "timeline" | "warm-context" | "agent-activity" | "transcript";
 
 // Parse warm context text into structured sections
 function parseWarmContext(text: string): { intro: string; score?: string; signals?: string[] } {
@@ -73,7 +73,7 @@ function parseAgentNotes(text: string) {
 }
 
 export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
-  const [activeTab, setActiveTab] = useState<DrawerTab>("warm-context");
+  const [activeTab, setActiveTab] = useState<DrawerTab>("timeline");
 
   const SCORE_COLOR =
     lead.scoreLevel === "hot"
@@ -149,9 +149,9 @@ export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
         <div className="flex items-center border-b border-[#e9e9e7] shrink-0 px-2">
           {(
             [
+              { key: "timeline", label: "Timeline" },
               { key: "warm-context", label: "Warm Context" },
-              { key: "agent-activity", label: "Agent Activity" },
-              { key: "transcript", label: "Transcript" },
+              { key: "agent-activity", label: "Agent Notes" },
             ] as { key: DrawerTab; label: string }[]
           ).map((tab) => (
             <button
@@ -173,13 +173,13 @@ export function LeadDrawer({ lead, onClose, onTweakInChat }: Props) {
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* ── Activity tab ─────────────────────────────── */}
-          {activeTab === "activity" && (
+          {/* ── Timeline tab ─────────────────────────────── */}
+          {activeTab === "timeline" && (
             <div className="p-6 space-y-6">
-              {/* Timeline */}
+              {/* Unified Timeline */}
               <div>
                 <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider mb-3" style={{ fontWeight: 500 }}>
-                  Activity
+                  Unified Timeline
                 </p>
                 <div className="relative pl-5">
                   <div className="absolute left-[5px] top-2 bottom-2 w-px bg-[#e9e9e7]" />

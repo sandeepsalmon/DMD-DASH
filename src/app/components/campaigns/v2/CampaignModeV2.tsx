@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import type { CampaignModeState, Lead, SuggestedCampaignContext } from "../types";
-import { LEADS } from "../types";
 import { useCampaignState } from "./hooks/useCampaignState";
 import { CampaignListPanelV2 } from "./CampaignListPanelV2";
 import { CampaignChatPanelV2 } from "./CampaignChatPanelV2";
@@ -9,6 +8,8 @@ import { LeadDrawer } from "../LeadDrawer";
 import { LeadsExpandModal } from "../LeadsExpandModal";
 import { useLayoutPanels } from "../../LayoutPanelContext";
 import { toast } from "sonner";
+import { getCampaignData } from "../campaignData";
+import { getAgentById } from "../../agents/agentData";
 
 interface Props {
   initialState: CampaignModeState;
@@ -16,6 +17,7 @@ interface Props {
   onCampaignLaunched: () => void;
   onboardingMode?: "new" | "suggested";
   suggestedCampaign?: SuggestedCampaignContext | null;
+  campaignSlug?: string;
 }
 
 export function CampaignModeV2({
@@ -24,17 +26,18 @@ export function CampaignModeV2({
   onCampaignLaunched,
   onboardingMode = "new",
   suggestedCampaign = null,
+  campaignSlug = "reengage-pipeline",
 }: Props) {
-  const { state, marketingAgentAccepted, handleStart, handleMarketingAgentDecided, handleApproveAndLaunch } =
+  const { state, selectedAgentId, handleStart, handleAgentSelected, handleApproveAndLaunch } =
     useCampaignState(initialState);
 
+  const campaignData = getCampaignData(campaignSlug);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [leadsExpandOpen, setLeadsExpandOpen] = useState(false);
   const [chatPreFill, setChatPreFill] = useState("");
   const [activeTab, setActiveTab] = useState<RightPanelTab>("overview");
   const [isPaused, setIsPaused] = useState(false);
   const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false);
-  // Queue for prompts sent from the right panel to the chat
   const [pendingChatPrompt, setPendingChatPrompt] = useState<string | null>(null);
   const { setLeftPanel, setRightPanel } = useLayoutPanels();
 
@@ -42,7 +45,7 @@ export function CampaignModeV2({
   const isNewCampaign = onboardingMode === "new" && initialState === "initial" && !isLaunched;
   const campaignName = isNewCampaign
     ? "New Campaign"
-    : suggestedCampaign?.title ?? "Re-engage Stalled Pipeline Deals";
+    : suggestedCampaign?.title ?? campaignData.name;
 
   const handleTogglePause = useCallback(() => {
     setIsPaused((p) => {
@@ -55,6 +58,12 @@ export function CampaignModeV2({
   const handleExplainInChat = useCallback((prompt: string) => {
     setPendingChatPrompt(prompt);
   }, []);
+
+  const handleConnectAgent = useCallback((agentId: string | null) => {
+    handleAgentSelected(agentId);
+    const agentName = agentId ? getAgentById(agentId)?.name : null;
+    toast.success(agentName ? `${agentName} connected to campaign` : "Agent disconnected from campaign");
+  }, [handleAgentSelected]);
 
   // Inject left panel
   useEffect(() => {
@@ -82,14 +91,17 @@ export function CampaignModeV2({
           onLeadClick={(lead) => setSelectedLead(lead)}
           onExpandLeads={() => setLeadsExpandOpen(true)}
           onAccountClick={handleAccountClick}
-          marketingAgentCreated={marketingAgentAccepted}
+          marketingAgentCreated={!!selectedAgentId}
           onExplainInChat={handleExplainInChat}
           isPaused={isPaused}
           onTogglePause={handleTogglePause}
+          campaignData={campaignData}
+          connectedAgentId={selectedAgentId}
+          onConnectAgent={handleConnectAgent}
         />
       );
     }
-  }, [state, activeTab, setRightPanel, marketingAgentAccepted, isPaused, handleTogglePause, handleExplainInChat, campaignName]);
+  }, [state, activeTab, setRightPanel, selectedAgentId, isPaused, handleTogglePause, handleExplainInChat, campaignName]);
 
   // Clean up panels on unmount
   useEffect(() => {
@@ -100,7 +112,7 @@ export function CampaignModeV2({
   }, [setLeftPanel, setRightPanel]);
 
   const handleAccountClick = (accountName: string) => {
-    const lead = LEADS.find((l) => l.company === accountName);
+    const lead = campaignData.leads.find((l) => l.company === accountName);
     if (lead) setSelectedLead(lead);
   };
 
@@ -158,13 +170,14 @@ export function CampaignModeV2({
         onStart={handleStart}
         onPromptClick={handlePromptClick}
         onViewCampaign={() => {}}
-        onMarketingAgentDecided={handleMarketingAgentDecided}
+        onAgentSelected={handleAgentSelected}
         onSwitchTab={handleSwitchTab}
         isPaused={isPaused}
         pendingPrompt={pendingChatPrompt}
         onPromptConsumed={handleChatPromptConsumed}
         onboardingMode={onboardingMode}
         suggestedCampaign={suggestedCampaign}
+        campaignData={campaignData}
       />
 
       {selectedLead && (
@@ -213,16 +226,16 @@ export function CampaignModeV2({
                 </div>
                 <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
                   <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Audience</p>
-                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>34 leads</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>{campaignData.launchConfig.audience}</p>
                 </div>
                 <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
                   <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Sequence</p>
-                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>3 emails (Day 0, 3, 7)</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>{campaignData.launchConfig.sequence}</p>
                 </div>
                 <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
                   <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Conversational Agent</p>
                   <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>
-                    {marketingAgentAccepted ? "Enabled" : "Disabled"}
+                    {selectedAgentId ? getAgentById(selectedAgentId)?.name ?? "Unknown" : "None"}
                   </p>
                 </div>
               </div>

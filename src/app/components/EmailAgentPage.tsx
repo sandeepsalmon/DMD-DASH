@@ -14,7 +14,6 @@ import type {
   CampaignModeState,
   SuggestedCampaignContext,
 } from "./campaigns/types";
-// import { CampaignMode } from "./campaigns/CampaignMode";
 import { CampaignModeV2 } from "./campaigns/v2/CampaignModeV2";
 
 type CampaignEntryMode = "new" | "suggested";
@@ -36,6 +35,51 @@ const suggestedCampaigns: SuggestedCampaignContext[] = [
   },
 ];
 
+interface ActiveCampaignCard {
+  slug: string;
+  name: string;
+  status: "Live" | "Paused" | "Ramping";
+  statusColor: string;
+  startLabel: string;
+  leads: number;
+  segments: number;
+  emailsSent: number;
+  openRate: string;
+  pipeline: string;
+  meetings: number;
+}
+
+const ACTIVE_CAMPAIGNS: ActiveCampaignCard[] = [
+  { slug: "reengage-pipeline", name: "Re-engage Stalled Pipeline Deals", status: "Live", statusColor: "#22B07D", startLabel: "Day 3", leads: 34, segments: 3, emailsSent: 44, openRate: "68%", pipeline: "$84K", meetings: 3 },
+  { slug: "webinar-followup", name: "Webinar Follow-Up: Security Summit", status: "Live", statusColor: "#22B07D", startLabel: "Day 5", leads: 47, segments: 3, emailsSent: 94, openRate: "51%", pipeline: "$62K", meetings: 5 },
+  { slug: "trial-nurture", name: "Product-Led Trial Nurture", status: "Ramping", statusColor: "#5B8DEF", startLabel: "Day 2", leads: 128, segments: 3, emailsSent: 256, openRate: "31%", pipeline: "$41K", meetings: 8 },
+  { slug: "enterprise-upsell", name: "Enterprise Expansion Upsell", status: "Paused", statusColor: "#E8A600", startLabel: "Day 12", leads: 22, segments: 3, emailsSent: 66, openRate: "45%", pipeline: "$210K", meetings: 4 },
+  { slug: "competitive-displacement", name: "Competitive Displacement (Acme)", status: "Live", statusColor: "#22B07D", startLabel: "Day 1", leads: 19, segments: 3, emailsSent: 38, openRate: "53%", pipeline: "$97K", meetings: 2 },
+];
+
+const EMPTY_QUICK_STATS = [
+  { label: "Pipeline Generated", value: "$0" },
+  { label: "Emails Sent", value: "0" },
+  { label: "Open Rate", value: "0%" },
+  { label: "Meetings Booked", value: "0" },
+];
+
+const ACTIVE_QUICK_STATS = [
+  { label: "Pipeline Generated", value: "$494K" },
+  { label: "Emails Sent", value: "498" },
+  { label: "Open Rate", value: "42.1%" },
+  { label: "Meetings Booked", value: "22" },
+];
+
+const ACTION_INSIGHTS = [
+  { icon: "fire", text: "Re-engage Pipeline: 17.6% lead-to-meeting conversion (2.9x above benchmark) — expand audience to 40 similar stalled deals in HubSpot." },
+  { icon: "target", text: "Webinar Follow-Up: 6 Q&A participants opened but haven't booked — switch CTA from Case Study to personalized demo invite." },
+  { icon: "sparkle", text: "Trial Nurture: API playground users convert 3.2x more than average — route 12 power users hitting plan limits to direct AE booking." },
+  { icon: "alert", text: "Enterprise Upsell: paused 9 days, but Laura Martinez (ICP 86) and 2 others showing renewed pricing activity — resume with refreshed copy." },
+  { icon: "analytics", text: "Competitive Displacement: 53% open rate is highest across all campaigns — clone this subject line pattern for Re-engage Pipeline Segment C." },
+  { icon: "calendar", text: "Chris Park (Trial Nurture): daily active user for 6 of 7 trial days, exploring webhooks, hasn't upgraded — escalate to AE this week." },
+];
+
 export function EmailAgentPage() {
   const [campaignView, setCampaignView] = useState<AppView>("homepage");
   const [homepageState, setHomepageState] = useState<HomepageState>("empty");
@@ -45,12 +89,14 @@ export function EmailAgentPage() {
   const [selectedSuggestedCampaign, setSelectedSuggestedCampaign] =
     useState<SuggestedCampaignContext | null>(null);
   const [chatInput, setChatInput] = useState("");
+  const [selectedCampaignSlug, setSelectedCampaignSlug] = useState<string>("reengage-pipeline");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSuggestedCampaignClick = (campaign: SuggestedCampaignContext) => {
     setCampaignEntryMode("suggested");
     setSelectedSuggestedCampaign(campaign);
     setCampaignModeInitialState("initial");
+    setSelectedCampaignSlug("reengage-pipeline");
     setCampaignView("campaign-mode");
   };
 
@@ -58,13 +104,15 @@ export function EmailAgentPage() {
     setCampaignEntryMode("new");
     setSelectedSuggestedCampaign(null);
     setCampaignModeInitialState("initial");
+    setSelectedCampaignSlug("reengage-pipeline");
     setCampaignView("campaign-mode");
   };
 
-  const handleActiveCampaignClick = () => {
+  const handleActiveCampaignClick = (slug: string) => {
     setCampaignEntryMode("new");
     setSelectedSuggestedCampaign(null);
     setCampaignModeInitialState("running");
+    setSelectedCampaignSlug(slug);
     setCampaignView("campaign-mode");
   };
 
@@ -98,6 +146,7 @@ export function EmailAgentPage() {
         onCampaignLaunched={handleCampaignLaunched}
         onboardingMode={campaignEntryMode}
         suggestedCampaign={selectedSuggestedCampaign}
+        campaignSlug={selectedCampaignSlug}
       />
     );
   }
@@ -131,7 +180,7 @@ export function EmailAgentPage() {
             style={{ fontWeight: 600, lineHeight: 1.3 }}
           >
             {homepageState === "dense"
-              ? "Your pipeline re-engagement campaign is live."
+              ? "Your campaigns are live and generating pipeline."
               : "Good morning, Sandeep."}
           </p>
           <p
@@ -143,8 +192,8 @@ export function EmailAgentPage() {
               : "I've analyzed your CRM — here are a few campaigns worth running."}
           </p>
 
-          {/* Qualification Funnel */}
-          <div className="border border-[#e9e9e7] rounded-xl p-4 mb-6">
+          {/* Qualification Funnel (only when campaigns are active) */}
+          {homepageState === "dense" && <div className="border border-[#e9e9e7] rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <HugeiconsIcon
                 icon={FlashIcon}
@@ -190,16 +239,11 @@ export function EmailAgentPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-3 mb-6">
-            {[
-              { label: "Pipeline Generated", value: "$0" },
-              { label: "Emails Sent", value: "0" },
-              { label: "Open Rate", value: "0%" },
-              { label: "Meetings Booked", value: "0" },
-            ].map((stat) => (
+            {(homepageState === "dense" ? ACTIVE_QUICK_STATS : EMPTY_QUICK_STATS).map((stat) => (
               <div
                 key={stat.label}
                 className="border border-[#e9e9e7] rounded-xl p-3.5 bg-white"
@@ -247,77 +291,60 @@ export function EmailAgentPage() {
                 Active Campaigns
               </p>
               <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={handleActiveCampaignClick}
-                  className="w-full text-left rounded-xl border border-[#e9e9e7] p-4 transition-colors hover:shadow-sm hover:border-[#c8c8c6] group bg-white"
-                >
-                  {/* Status */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-[6px] h-[6px] rounded-full bg-[#22B07D]" />
-                      <span className="text-[10px] text-[#22B07D]" style={{ fontWeight: 500 }}>
-                        Live
+                {ACTIVE_CAMPAIGNS.map((campaign) => (
+                  <button
+                    key={campaign.slug}
+                    onClick={() => handleActiveCampaignClick(campaign.slug)}
+                    className="w-full text-left rounded-xl border border-[#e9e9e7] p-4 transition-colors hover:shadow-sm hover:border-[#c8c8c6] group bg-white"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-[6px] h-[6px] rounded-full" style={{ background: campaign.statusColor }} />
+                        <span className="text-[10px]" style={{ fontWeight: 500, color: campaign.statusColor }}>
+                          {campaign.status}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
+                        {campaign.startLabel}
                       </span>
                     </div>
-                    <span className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
-                      Started just now
-                    </span>
-                  </div>
-
-                  {/* Name */}
-                  <p className="text-[14px] text-foreground mb-0.5" style={{ fontWeight: 600 }}>
-                    Re-engage Stalled Pipeline Deals
-                  </p>
-                  <p className="text-[11px] text-[#9b9a97] mb-3" style={{ fontWeight: 400, lineHeight: 1.4 }}>
-                    34 leads across 3 segments
-                  </p>
-
-                  {/* Stats */}
-                  <div className="border-t border-[#e9e9e7] pt-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>
-                          Emails Sent
-                        </p>
-                        <p className="text-[16px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>
-                          18
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>
-                          Open Rate
-                        </p>
-                        <p className="text-[16px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>
-                          24.3%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>
-                          Pipeline
-                        </p>
-                        <p className="text-[16px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>
-                          $0
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>
-                          Meetings
-                        </p>
-                        <p className="text-[16px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>
-                          0
-                        </p>
+                    <p className="text-[13px] text-foreground mb-0.5 leading-tight" style={{ fontWeight: 600 }}>
+                      {campaign.name}
+                    </p>
+                    <p className="text-[11px] text-[#9b9a97] mb-3" style={{ fontWeight: 400, lineHeight: 1.4 }}>
+                      {campaign.leads} leads across {campaign.segments} segments
+                    </p>
+                    <div className="border-t border-[#e9e9e7] pt-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Emails Sent</p>
+                          <p className="text-[15px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>{campaign.emailsSent}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Open Rate</p>
+                          <p className="text-[15px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>{campaign.openRate}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Pipeline</p>
+                          <p className="text-[15px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>{campaign.pipeline}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Meetings</p>
+                          <p className="text-[15px] text-foreground tabular-nums" style={{ fontWeight: 600 }}>{campaign.meetings}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
           {/* Suggested Campaigns — filter out already-active ones */}
           {(() => {
+            const activeTitles = ACTIVE_CAMPAIGNS.map((c) => c.name);
             const available = homepageState === "dense"
-              ? suggestedCampaigns.filter((c) => c.title !== "Re-engage Stalled Pipeline Deals")
+              ? suggestedCampaigns.filter((c) => !activeTitles.includes(c.title))
               : suggestedCampaigns;
 
             return available.length > 0 ? (
@@ -410,24 +437,7 @@ export function EmailAgentPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                {[
-                  {
-                    icon: "sparkle",
-                    text: "Re-engage Pipeline campaign is performing 2.9x above benchmark (8.8% vs 3% conversion rate)",
-                  },
-                  {
-                    icon: "sparkle",
-                    text: "4 Segment B leads are opening emails but not clicking — suggest switching to Reply Prompt CTA",
-                  },
-                  {
-                    icon: "sparkle",
-                    text: "Anna Kumar (ICP 71) has high engagement but no meeting — recommend AE escalation",
-                  },
-                  {
-                    icon: "sparkle",
-                    text: "Webinar follow-up campaign could capture 47 leads — 12 already had agent conversations",
-                  },
-                ].map((item, i) => (
+                {ACTION_INSIGHTS.map((item, i) => (
                   <div key={i} className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-[#fafaf9] transition-colors">
                     <span className="mt-px shrink-0 text-foreground/30">
                       <IconFromKey iconKey={item.icon} size={12} />
@@ -444,6 +454,38 @@ export function EmailAgentPage() {
             </div>
           )}
 
+        </div>
+      </div>
+
+      {/* Prototype Controller */}
+      <div className="fixed bottom-4 left-16 z-50 flex items-center gap-2.5 bg-white border border-[#e9e9e7] rounded-lg shadow-sm px-3 py-1.5">
+        <IconFromKey iconKey="settings" size={12} className="text-[#9b9a97]" />
+        <span className="text-[11px] text-[#9b9a97]" style={{ fontWeight: 500 }}>
+          Prototype
+        </span>
+        <div className="flex bg-[#f7f7f5] rounded-md p-0.5 gap-0.5">
+          <button
+            onClick={() => setHomepageState("empty")}
+            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${
+              homepageState === "empty"
+                ? "bg-foreground text-white"
+                : "text-[#9b9a97] hover:bg-[#efefed]"
+            }`}
+            style={{ fontWeight: 500 }}
+          >
+            Empty
+          </button>
+          <button
+            onClick={() => setHomepageState("dense")}
+            className={`text-[11px] px-2.5 py-1 rounded-md transition-colors ${
+              homepageState === "dense"
+                ? "bg-foreground text-white"
+                : "text-[#9b9a97] hover:bg-[#efefed]"
+            }`}
+            style={{ fontWeight: 500 }}
+          >
+            Active
+          </button>
         </div>
       </div>
     </div>

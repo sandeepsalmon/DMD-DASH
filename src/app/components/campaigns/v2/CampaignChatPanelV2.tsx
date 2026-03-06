@@ -12,6 +12,9 @@ import {
 } from "../icons";
 import { IconFromKey } from "../icons";
 import type { CampaignModeState, SuggestedCampaignContext } from "../types";
+import type { CampaignData } from "../campaignData";
+import { getAgentById } from "../../agents/agentData";
+import { AgentPicker } from "../../agents/AgentPicker";
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
 import { Loader } from "@/components/prompt-kit/loader";
 import {
@@ -30,13 +33,14 @@ interface Props {
   onStart: () => void;
   onPromptClick: (prompt: string) => void;
   onViewCampaign: () => void;
-  onMarketingAgentDecided: (accepted: boolean) => void;
+  onAgentSelected: (agentId: string | null) => void;
   onSwitchTab: (tab: RightPanelTab) => void;
   isPaused?: boolean;
   pendingPrompt?: string | null;
   onPromptConsumed?: () => void;
   onboardingMode?: "new" | "suggested";
   suggestedCampaign?: SuggestedCampaignContext | null;
+  campaignData?: CampaignData;
 }
 
 const CHAIN_OF_THOUGHT = [
@@ -409,8 +413,8 @@ function CompactCampaignPlan({
   onPreview,
   followUpProfile,
   showDecision,
-  conversationalAgentEnabled,
-  onToggleConversationalAgent,
+  selectedAgentId,
+  onSelectAgent,
   onConfirmPlan,
   confirming,
   selectionLocked,
@@ -418,8 +422,8 @@ function CompactCampaignPlan({
   onPreview: () => void;
   followUpProfile: FollowUpProfile;
   showDecision?: boolean;
-  conversationalAgentEnabled?: boolean;
-  onToggleConversationalAgent?: (enabled: boolean) => void;
+  selectedAgentId?: string | null;
+  onSelectAgent?: (agentId: string | null) => void;
   onConfirmPlan?: () => void;
   confirming?: boolean;
   selectionLocked?: boolean;
@@ -471,22 +475,20 @@ function CompactCampaignPlan({
 
         {(showDecision || selectionLocked) && (
           <div className="mt-2.5 border border-[#e9e9e7] rounded-lg bg-[#fcfcfb] p-2.5">
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!conversationalAgentEnabled}
-                disabled={!showDecision}
-                onChange={(event) => onToggleConversationalAgent?.(event.target.checked)}
-                className="mt-0.5"
-              />
-              <span className="text-[11px] text-foreground" style={{ fontWeight: 400, lineHeight: 1.5 }}>
-                Add optional conversational agent routing for replies.
-                <span className="text-[#9b9a97]"> This can qualify leads before AE handoff.</span>
-              </span>
-            </label>
+            <p className="text-[11px] text-foreground mb-1" style={{ fontWeight: 500 }}>
+              Conversational Agent
+            </p>
+            <p className="text-[10px] text-[#9b9a97] mb-2" style={{ fontWeight: 400 }}>
+              Select an agent to qualify leads before AE handoff.
+            </p>
+            <AgentPicker
+              selectedAgentId={selectedAgentId ?? null}
+              onSelect={(id) => onSelectAgent?.(id)}
+              disabled={!showDecision}
+            />
 
             {showDecision && (
-              <div className="pt-2">
+              <div className="pt-2.5">
                 <button
                   onClick={onConfirmPlan}
                   disabled={confirming}
@@ -566,14 +568,17 @@ export function CampaignChatPanelV2({
   chatPreFill = "",
   onStart,
   onPromptClick,
-  onMarketingAgentDecided,
+  onAgentSelected,
   onSwitchTab,
   isPaused,
   pendingPrompt,
   onPromptConsumed,
   onboardingMode = "new",
   suggestedCampaign = null,
+  campaignData,
 }: Props) {
+  const timeline = campaignData?.timeline;
+  const chainOfThought = campaignData?.chainOfThought ?? CHAIN_OF_THOUGHT;
   const [chatInput, setChatInput] = useState(chatPreFill);
   const [isSending, setIsSending] = useState(false);
   const [buildPhase, setBuildPhase] = useState(0);
@@ -582,7 +587,7 @@ export function CampaignChatPanelV2({
   const [leaderDone, setLeaderDone] = useState(false);
   const [showFullDiscussion, setShowFullDiscussion] = useState(false);
   const [launchStep, setLaunchStep] = useState(0);
-  const [conversationalAgentEnabled, setConversationalAgentEnabled] = useState(true);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>("sam");
   const [followUpPersistence, setFollowUpPersistence] = useState(1);
   const [followUpConfirming, setFollowUpConfirming] = useState(false);
   const [followUpConfirmed, setFollowUpConfirmed] = useState(false);
@@ -611,8 +616,10 @@ export function CampaignChatPanelV2({
   const [followUpMessages, setFollowUpMessages] = useState<ChatMsg[]>([]);
 
   // Post-onboarding messages (for running state interactions, etc.)
-  const [postMessages, setPostMessages] = useState<ChatMsg[]>([]);
-  const [runningPostStartIndex, setRunningPostStartIndex] = useState<number | null>(null);
+  const initialChatHistory = campaignData?.chatHistory ?? [];
+  const enteringRunning = campaignState === "running" && initialChatHistory.length > 0;
+  const [postMessages, setPostMessages] = useState<ChatMsg[]>(enteringRunning ? initialChatHistory : []);
+  const [runningPostStartIndex, setRunningPostStartIndex] = useState<number | null>(enteringRunning ? 0 : null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -634,8 +641,8 @@ export function CampaignChatPanelV2({
       t.push(setTimeout(() => setBuildPhase(1), 80));
       t.push(setTimeout(() => setBuildPhase(2), 1200));
       t.push(setTimeout(() => setBuildPhase(3), 3000));
-      CHAIN_OF_THOUGHT.forEach((_, i) => t.push(setTimeout(() => setVisibleSteps(i + 1), 1500 * (i + 1))));
-      const agentBase = 1500 * CHAIN_OF_THOUGHT.length + 1200;
+      chainOfThought.forEach((_, i) => t.push(setTimeout(() => setVisibleSteps(i + 1), 1500 * (i + 1))));
+      const agentBase = 1500 * chainOfThought.length + 1200;
       PLAN_THOUGHT_CHAIN.forEach((_, i) => t.push(setTimeout(() => setLeaderMsgIndex(i + 1), agentBase + 1500 * i)));
       t.push(setTimeout(() => setLeaderDone(true), agentBase + 1500 * PLAN_THOUGHT_CHAIN.length));
       return () => t.forEach(clearTimeout);
@@ -656,7 +663,7 @@ export function CampaignChatPanelV2({
       setPlanApplying(false);
       setPlanPreviewOpen(false);
       setShowFullDiscussion(true);
-      setConversationalAgentEnabled(true);
+      setSelectedAgentId("sam");
       setFollowUpPersistence(1);
       setFollowUpConfirming(false);
       setFollowUpConfirmed(false);
@@ -911,7 +918,7 @@ const handlePipelineYes = () => {
       {
         id: `${Date.now()}-u`,
         role: "user",
-        content: `Use this plan (${FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence].label}: ${FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence].cadence}${conversationalAgentEnabled ? " + conversational agent" : ""})`,
+        content: `Use this plan (${FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence].label}: ${FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence].cadence}${selectedAgentId ? ` + ${getAgentById(selectedAgentId)?.name ?? "agent"}` : ""})`,
       },
     ]);
     setTimeout(() => {
@@ -925,7 +932,7 @@ const handlePipelineYes = () => {
           content: "Plan applied. Review the sequence and click Approve & Launch when you're ready.",
         },
       ]);
-      onMarketingAgentDecided(conversationalAgentEnabled);
+      onAgentSelected(selectedAgentId);
     }, 450);
   };
 
@@ -1186,7 +1193,7 @@ const handlePipelineYes = () => {
                 )}
                 {buildPhase >= 3 && visibleSteps > 0 && (
                   <div className="space-y-1">
-                    {CHAIN_OF_THOUGHT.slice(0, visibleSteps).map((step, i) => (
+                    {chainOfThought.slice(0, visibleSteps).map((step, i) => (
                       <div key={i} className="text-[11px] flex items-center gap-1.5 animate-in fade-in duration-200">
                         <IconFromKey iconKey={step.iconKey} size={11} color={step.iconKey === "checkmark" ? "#22c55e" : "#d97706"} />
                         <span className="text-foreground" style={{ fontWeight: 400 }}>{step.title}</span>
@@ -1288,8 +1295,8 @@ const handlePipelineYes = () => {
                 onPreview={handlePreviewPlan}
                 followUpProfile={FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence]}
                 showDecision={campaignState === "agent-suggestion"}
-                conversationalAgentEnabled={conversationalAgentEnabled}
-                onToggleConversationalAgent={setConversationalAgentEnabled}
+                selectedAgentId={selectedAgentId}
+                onSelectAgent={setSelectedAgentId}
                 onConfirmPlan={handleApplyPlan}
                 confirming={planApplying}
                 selectionLocked={campaignState !== "agent-suggestion" || planApplied}
@@ -1327,7 +1334,7 @@ const handlePipelineYes = () => {
                 </p>
               </button>
               <p className="text-[10px] text-[#9b9a97] mt-2" style={{ fontWeight: 400 }}>
-                Follow-up: {FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence].label} · Conversational agent: {conversationalAgentEnabled ? "Enabled" : "Disabled"}
+                Follow-up: {FOLLOW_UP_PERSISTENCE_LEVELS[followUpPersistence].label} · Agent: {selectedAgentId ? getAgentById(selectedAgentId)?.name ?? "Unknown" : "None"}
               </p>
             </DocketMessage>
           )}
@@ -1348,41 +1355,51 @@ const handlePipelineYes = () => {
             </>
           )}
 
-          {/* Running — Day 3 */}
-          {campaignState === "running" && (
+          {/* Running — campaign-specific timeline */}
+          {campaignState === "running" && timeline && (
             <>
               <div className="space-y-1.5">
-                <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>── DAY 1 ──</p>
+                <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>── {timeline.day1Label} ──</p>
                 <div className="space-y-1 text-[12px]" style={{ fontWeight: 400 }}>
-                  <p className="text-foreground flex items-center gap-1.5"><HugeiconsIcon icon={CheckmarkBadge02Icon} size={11} color="#22c55e" /> Email 1: 34 sent · 71% open · 24% click</p>
-                  <p className="text-foreground flex items-center gap-1.5"><HugeiconsIcon icon={CheckmarkBadge02Icon} size={11} color="#22c55e" /> High-intent recipients replied quickly (3 meetings booked)</p>
-                  <p className="text-foreground flex items-center gap-1.5"><HugeiconsIcon icon={CheckmarkBadge02Icon} size={11} color="#22c55e" /> Next send moved to proof-focused CTA</p>
+                  {timeline.day1Items.map((item, i) => (
+                    <p key={i} className="text-foreground flex items-center gap-1.5">
+                      <HugeiconsIcon icon={CheckmarkBadge02Icon} size={11} color={item.isGreen ? "#22c55e" : "#9b9a97"} /> {item.text}
+                    </p>
+                  ))}
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>── DAY 3 (Today) ──</p>
+                <p className="text-[10px] text-[#9b9a97] uppercase tracking-wider" style={{ fontWeight: 500 }}>── {timeline.dayNLabel} ──</p>
                 <div className="space-y-1 text-[12px]" style={{ fontWeight: 400 }}>
-                  <p className="text-foreground flex items-center gap-1.5"><HugeiconsIcon icon={CheckmarkBadge02Icon} size={11} color="#22c55e" /> Email 2: 16 sent · 63% open · 25% click</p>
-                  <div className="border border-[#e9e9e7] rounded-lg p-2.5 bg-[#fafaf9] ml-3 mt-1">
-                    <p className="text-foreground flex items-center gap-1 text-[11px]" style={{ fontWeight: 500 }}><HugeiconsIcon icon={AiChat02Icon} size={11} /> Pre-send: James Wong CTA → Booking link</p>
-                    <p className="text-[#9b9a97] text-[10px]">3 pricing visits detected · Result: meeting booked ✓</p>
-                  </div>
-                  <p className="text-foreground mt-2 flex items-center gap-1.5"><HugeiconsIcon icon={Calendar03Icon} size={11} /> 3 meetings booked</p>
+                  {timeline.dayNItems.map((item, i) => (
+                    <p key={i} className="text-foreground flex items-center gap-1.5">
+                      <HugeiconsIcon icon={CheckmarkBadge02Icon} size={11} color={item.isGreen ? "#22c55e" : "#9b9a97"} /> {item.text}
+                    </p>
+                  ))}
+                  {timeline.preSendNote && (
+                    <div className="border border-[#e9e9e7] rounded-lg p-2.5 bg-[#fafaf9] ml-3 mt-1">
+                      <p className="text-foreground flex items-center gap-1 text-[11px]" style={{ fontWeight: 500 }}><HugeiconsIcon icon={AiChat02Icon} size={11} /> {timeline.preSendNote.title}</p>
+                      <p className="text-[#9b9a97] text-[10px]">{timeline.preSendNote.subtitle}</p>
+                    </div>
+                  )}
+                  <p className="text-foreground mt-2 flex items-center gap-1.5"><HugeiconsIcon icon={Calendar03Icon} size={11} /> {timeline.meetingsText}</p>
                 </div>
               </div>
 
-              {/* Day 3 metrics card */}
+              {/* Metrics card */}
               <DocketMessage>
                 <button onClick={() => onSwitchTab("overview")} className="w-full text-left border border-[#e9e9e7] rounded-xl p-3.5 hover:border-foreground/20 hover:shadow-sm transition-all bg-white">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[11px] text-foreground" style={{ fontWeight: 500 }}>Day 3 Results</p>
-                    <span className="text-[10px] px-1.5 py-px rounded bg-green-50 text-green-700 border border-green-200" style={{ fontWeight: 500 }}>8.8% conv.</span>
+                    <p className="text-[11px] text-foreground" style={{ fontWeight: 500 }}>{timeline.metricsCard.dayLabel}</p>
+                    <span className="text-[10px] px-1.5 py-px rounded bg-green-50 text-green-700 border border-green-200" style={{ fontWeight: 500 }}>{timeline.metricsCard.badge}</span>
                   </div>
                   <div className="flex items-center gap-4 text-[11px] text-[#9b9a97] tabular-nums" style={{ fontWeight: 400 }}>
-                    <span>3 meetings</span><span>44 sent</span><span>68% open</span>
+                    {timeline.metricsCard.stats.map((s, i) => <span key={i}>{s}</span>)}
                   </div>
-                  <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1" style={{ fontWeight: 400 }}>⚠ 4 leads in Email 2: CTA mismatch — switch to Reply Prompt?</p>
+                  {timeline.metricsCard.warning && (
+                    <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1" style={{ fontWeight: 400 }}>⚠ {timeline.metricsCard.warning}</p>
+                  )}
                   <p className="text-[10px] text-[#9b9a97] mt-1" style={{ fontWeight: 400 }}>View details →</p>
                 </button>
               </DocketMessage>
@@ -1490,7 +1507,7 @@ const handlePipelineYes = () => {
               </div>
 
               <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
-                Conversational agent routing: {conversationalAgentEnabled ? "Enabled" : "Disabled"}
+                Agent routing: {selectedAgentId ? getAgentById(selectedAgentId)?.name ?? "Unknown" : "None"}
               </p>
             </div>
 

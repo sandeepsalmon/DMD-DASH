@@ -156,6 +156,38 @@
   );
 }
 
+/* AI Assistant floating button glow */
+.ai-assistant-btn {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+}
+
+.ai-assistant-btn > .ai-glow {
+  position: absolute;
+  inset: -50%;
+  animation: spin-slow 6s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    #C4CBEF 0%,
+    #FFA0A0 25%,
+    #C4CBEF 50%,
+    #FFA0A0 75%,
+    #C4CBEF 100%
+  );
+}
+
+.ai-assistant-btn:hover > .ai-glow {
+  background: conic-gradient(
+    from 0deg,
+    #b0b8e8 0%,
+    #ff8a8a 25%,
+    #b0b8e8 50%,
+    #ff8a8a 75%,
+    #b0b8e8 100%
+  );
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

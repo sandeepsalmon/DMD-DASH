@@ -26,7 +26,9 @@
       "Bash(gh auth status)",
       "Bash(gh repo create DMD-DASH --public --source=. --remote=origin --push)",
       "Bash(npx vercel --version)",
-      "Bash(npx vercel --prod --yes)"
+      "Bash(npx vercel --prod --yes)",
+      "Bash(ls node_modules/.bin/tsc*)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(data[0][''text'']\\)\")"
     ]
   }
 }

@@ -12,12 +12,16 @@ import {
 } from "../../icons";
 import type { CampaignModeState, Lead } from "../../types";
 import { LEADS } from "../../types";
+import type { CampaignData } from "../../campaignData";
+import { getAgentById } from "../../../agents/agentData";
 import { toast } from "sonner";
 
 interface Props {
   campaignState: CampaignModeState;
   marketingAgentCreated: boolean;
   onLeadClick?: (lead: Lead) => void;
+  campaignData?: CampaignData;
+  connectedAgentId?: string | null;
 }
 
 type AttachmentMode = "dynamic" | "slides" | "choose";
@@ -173,21 +177,25 @@ function getLeadSignal(lead: Lead): string {
   return lead.activity[0]?.description ?? "recent engagement";
 }
 
-const PREVIEW_LEADS: PreviewLead[] = LEADS.slice(0, 6).map((lead) => {
-  const first = lead.name.split(" ")[0].toLowerCase();
-  const companyDomain = toCompanyEmail(lead.company);
-  return {
-    id: lead.id,
-    name: lead.name,
-    company: lead.company,
-    email: `${first}@${companyDomain}`,
-    signal: getLeadSignal(lead),
-  };
-});
+function makePreviewLeads(leads: Lead[]): PreviewLead[] {
+  return leads.slice(0, 6).map((lead) => {
+    const first = lead.name.split(" ")[0].toLowerCase();
+    const companyDomain = toCompanyEmail(lead.company);
+    return {
+      id: lead.id,
+      name: lead.name,
+      company: lead.company,
+      email: `${first}@${companyDomain}`,
+      signal: getLeadSignal(lead),
+    };
+  });
+}
 
-function getSequenceLeadRows(step: number, isLaunched: boolean): SequenceLeadRow[] {
-  const pool = LEADS.slice((step - 1) * 2, (step - 1) * 2 + 4);
-  const fallbackPool = pool.length > 0 ? pool : LEADS.slice(0, 4);
+const PREVIEW_LEADS: PreviewLead[] = makePreviewLeads(LEADS);
+
+function getSequenceLeadRows(step: number, isLaunched: boolean, leads: Lead[] = LEADS): SequenceLeadRow[] {
+  const pool = leads.slice((step - 1) * 2, (step - 1) * 2 + 4);
+  const fallbackPool = pool.length > 0 ? pool : leads.slice(0, 4);
 
   return fallbackPool.map((lead, idx) => {
     if (!isLaunched) {
@@ -538,7 +546,9 @@ function draftFromEmail(email: SequenceEmail): EmailDraft {
   };
 }
 
-export function EmailPlanArtifact({ campaignState, marketingAgentCreated, onLeadClick }: Props) {
+export function EmailPlanArtifact({ campaignState, marketingAgentCreated, onLeadClick, campaignData, connectedAgentId }: Props) {
+  const campaignLeads = campaignData?.leads ?? LEADS;
+  const previewLeads = useMemo(() => campaignData ? makePreviewLeads(campaignLeads) : PREVIEW_LEADS, [campaignData, campaignLeads]);
   const isLaunched = campaignState === "launched" || campaignState === "running";
   const [emails, setEmails] = useState<SequenceEmail[]>(INITIAL_EMAIL_SEQUENCE);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -661,23 +671,36 @@ export function EmailPlanArtifact({ campaignState, marketingAgentCreated, onLead
           />
         )}
 
-        {marketingAgentCreated && (
-          <div className="px-5 py-3 border-t border-[#e9e9e7] bg-[#fcfcfb]">
-            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white border border-[#e9e9e7]">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#faf5ff" }}>
-                <span className="text-[8px]" style={{ color: "#9333ea", fontWeight: 700 }}>CA</span>
+        {marketingAgentCreated && (() => {
+          const agent = connectedAgentId ? getAgentById(connectedAgentId) : null;
+          return (
+            <div className="px-5 py-3 border-t border-[#e9e9e7] bg-[#fcfcfb]">
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white border border-[#e9e9e7]">
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: agent ? `${agent.accentColor}18` : "#faf5ff" }}
+                >
+                  <span className="text-[8px]" style={{ color: agent?.accentColor ?? "#9333ea", fontWeight: 700 }}>
+                    {agent ? agent.name[0] : "CA"}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-foreground" style={{ fontWeight: 500 }}>
+                    {agent ? agent.name : "Conversational Agent"}
+                  </p>
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
+                    {agent ? agent.role : "Agent routing active"}
+                  </p>
+                </div>
+                {isLaunched && (
+                  <span className="text-[9px] px-1.5 py-px rounded bg-green-50 text-green-700 border border-green-200 shrink-0" style={{ fontWeight: 500 }}>
+                    Active
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-foreground flex-1" style={{ fontWeight: 400 }}>
-                Conversational Agent active. CTA can route replies here automatically.
-              </p>
-              {isLaunched && (
-                <span className="text-[9px] px-1.5 py-px rounded bg-green-50 text-green-700 border border-green-200" style={{ fontWeight: 500 }}>
-                  Active
-                </span>
-              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {editingEmail && editingIndex !== null && (
@@ -706,7 +729,7 @@ function SuggestedSequenceCard({
   onAccept: () => void;
   onDiscard: () => void;
 }) {
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const previewLead = PREVIEW_LEADS[0];
   const previewBody = useMemo(
     () => buildPreviewBody(draftFromEmail(email), previewLead, step),
@@ -714,72 +737,119 @@ function SuggestedSequenceCard({
   );
 
   return (
-    <div className="px-5 py-3 border-t border-[#e9e9e7] bg-[#fcfcfb]">
-      <div className="border border-blue-200 rounded-xl overflow-hidden bg-white">
-        <button
-          onClick={() => setPreviewOpen((current) => !current)}
-          className="w-full text-left px-3.5 py-2.5 bg-blue-50/70 border-b border-blue-100 flex items-center gap-2 hover:bg-blue-50 transition-colors"
-        >
-          <span className="text-[9px] px-1.5 py-px rounded border border-blue-200 bg-white text-blue-700" style={{ fontWeight: 500 }}>
-            Suggested step {step}
-          </span>
-          <p className="text-[11px] text-foreground flex-1" style={{ fontWeight: 500 }}>
-            Add an objection-handling follow-up
-          </p>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            size={11}
-            className={`text-[#6b6a67] transition-transform ${previewOpen ? "" : "rotate-[-90deg]"}`}
-          />
-        </button>
-
-        <div className="px-3.5 py-2.5">
-          <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Subject line</p>
-          <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>
-            {titleFromPrompt(email.promptTemplate, email.subject)}
-          </p>
-          <p className="text-[10px] text-[#9b9a97] mt-1.5" style={{ fontWeight: 400 }}>
-            Day {email.day} · {labelForPrimaryCta(email.primaryCta)}
-          </p>
-        </div>
-
-        {previewOpen && (
-          <div className="px-3.5 pb-2.5 space-y-2 animate-in fade-in duration-200">
-            <div className="border border-[#e9e9e7] rounded-lg bg-[#fafaf9] p-2.5">
-              <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Prompt</p>
-              <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 400, lineHeight: 1.55 }}>
-                {email.promptTemplate}
-              </p>
-            </div>
-            <div className="border border-[#e9e9e7] rounded-lg bg-white p-2.5">
-              <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>
-                Preview for {previewLead.name} · {previewLead.company}
-              </p>
-              <p className="text-[10px] text-foreground whitespace-pre-wrap mt-1" style={{ fontWeight: 400, lineHeight: 1.55 }}>
-                {previewBody}
-              </p>
-            </div>
+    <>
+      <div className="px-5 py-3 border-t border-[#e9e9e7] bg-[#fcfcfb]">
+        <div className="border border-blue-200 rounded-xl overflow-hidden bg-white">
+          <div className="px-3.5 py-2.5 bg-blue-50/70 border-b border-blue-100 flex items-center gap-2">
+            <span className="text-[9px] px-1.5 py-px rounded border border-blue-200 bg-white text-blue-700" style={{ fontWeight: 500 }}>
+              Suggested step {step}
+            </span>
+            <p className="text-[11px] text-foreground flex-1" style={{ fontWeight: 500 }}>
+              Add an objection-handling follow-up
+            </p>
           </div>
-        )}
 
-        <div className="px-3.5 py-2.5 border-t border-[#e9e9e7] flex items-center gap-1.5">
-          <button
-            onClick={onAccept}
-            className="text-[10px] px-2.5 py-1.5 rounded-md bg-foreground text-white hover:opacity-90 transition-opacity"
-            style={{ fontWeight: 500 }}
-          >
-            Accept and add
-          </button>
-          <button
-            onClick={onDiscard}
-            className="text-[10px] px-2.5 py-1.5 rounded-md border border-[#e0dfdd] text-[#6b6a67] bg-white hover:bg-[#f7f7f5] transition-colors"
-            style={{ fontWeight: 500 }}
-          >
-            Discard
-          </button>
+          <div className="px-3.5 py-2.5">
+            <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Subject line</p>
+            <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>
+              {titleFromPrompt(email.promptTemplate, email.subject)}
+            </p>
+            <p className="text-[10px] text-[#9b9a97] mt-1.5" style={{ fontWeight: 400 }}>
+              Day {email.day} · {labelForPrimaryCta(email.primaryCta)}
+            </p>
+          </div>
+
+          <div className="px-3.5 py-2.5 border-t border-[#e9e9e7] flex items-center gap-1.5">
+            <button
+              onClick={() => setModalOpen(true)}
+              className="text-[10px] px-2.5 py-1.5 rounded-md bg-foreground text-white hover:opacity-90 transition-opacity"
+              style={{ fontWeight: 500 }}
+            >
+              Review & Accept
+            </button>
+            <button
+              onClick={onDiscard}
+              className="text-[10px] px-2.5 py-1.5 rounded-md border border-[#e0dfdd] text-[#6b6a67] bg-white hover:bg-[#f7f7f5] transition-colors"
+              style={{ fontWeight: 500 }}
+            >
+              Discard
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {modalOpen && (
+        <div
+          className="fixed inset-0 bg-black/45 z-[80] flex items-center justify-center p-6"
+          onClick={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}
+        >
+          <div
+            className="w-[min(92vw,560px)] rounded-2xl border border-[#e9e9e7] bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-[#e9e9e7] bg-[#fafaf9]">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] px-1.5 py-px rounded border border-blue-200 bg-white text-blue-700" style={{ fontWeight: 500 }}>
+                  Suggested Step {step}
+                </span>
+              </div>
+              <p className="text-[14px] text-foreground" style={{ fontWeight: 600 }}>
+                {titleFromPrompt(email.promptTemplate, email.subject)}
+              </p>
+              <p className="text-[11px] text-[#9b9a97] mt-1" style={{ fontWeight: 400 }}>
+                Day {email.day} · {labelForPrimaryCta(email.primaryCta)}
+              </p>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              <div className="border border-[#e9e9e7] rounded-lg bg-[#fafaf9] p-3">
+                <p className="text-[10px] text-[#9b9a97] mb-1" style={{ fontWeight: 500 }}>Prompt</p>
+                <p className="text-[12px] text-foreground" style={{ fontWeight: 400, lineHeight: 1.6 }}>
+                  {email.promptTemplate}
+                </p>
+              </div>
+
+              <div className="border border-[#e9e9e7] rounded-lg bg-white p-3">
+                <p className="text-[10px] text-[#9b9a97] mb-1" style={{ fontWeight: 500 }}>
+                  Preview for {previewLead.name} · {previewLead.company}
+                </p>
+                <p className="text-[11px] text-foreground whitespace-pre-wrap" style={{ fontWeight: 400, lineHeight: 1.6 }}>
+                  {previewBody}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>CTA</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>{labelForPrimaryCta(email.primaryCta)}</p>
+                </div>
+                <div className="border border-[#e9e9e7] rounded-lg px-3 py-2 bg-[#fcfcfb]">
+                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Send timing</p>
+                  <p className="text-[11px] text-foreground mt-0.5" style={{ fontWeight: 500 }}>Agent-optimized</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 border-t border-[#e9e9e7] bg-white flex items-center justify-end gap-2">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="text-[11px] px-3 py-1.5 rounded-lg border border-[#e9e9e7] bg-white hover:bg-[#f7f7f5] transition-colors"
+                style={{ fontWeight: 500 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setModalOpen(false); onAccept(); }}
+                className="text-[11px] px-3.5 py-1.5 rounded-lg bg-foreground text-white hover:opacity-90 transition-opacity"
+                style={{ fontWeight: 500 }}
+              >
+                Accept & Add to Sequence
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -803,12 +873,7 @@ function EmailCard({
   onLeadClick?: (lead: Lead) => void;
 }) {
   const [expanded, setExpanded] = useState(step === 1);
-  const leadRows = getSequenceLeadRows(step, isLaunched);
   const displayTitle = titleFromPrompt(email.promptTemplate, email.subject);
-  const emailHistory = getEmailHistory(step, isLaunched);
-  const workflowContext = getWorkflowContext(step);
-  const agentActivity = getAgentActivity(step);
-  const transcript = getTranscript(step);
 
   const statusConfig = (() => {
     if (email.status === "sent" && isLaunched) {
@@ -886,42 +951,38 @@ function EmailCard({
     </div>
   );
 
-  const leadDeliveryPanel = (
+  const deliveryMetricsPanel = (
     <div className="border border-[#e9e9e7] rounded-xl overflow-hidden bg-white">
-      <div className="px-3.5 py-2.5 border-b border-[#e9e9e7] bg-[#fafaf9] flex items-center justify-between">
+      <div className="px-3.5 py-2.5 border-b border-[#e9e9e7] bg-[#fafaf9]">
         <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>
-          Lead delivery details
+          Delivery
         </p>
-        <span className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
-          {isLaunched ? "Click lead to open detail" : "Will populate after launch"}
-        </span>
       </div>
-      <div className="divide-y divide-[#f0f0ee]">
-        {leadRows.map((row) => (
-          <button
-            key={`${email.id}-${row.lead.id}`}
-            onClick={() => onLeadClick?.(row.lead)}
-            className="w-full px-3.5 py-2 text-left hover:bg-[#fafaf9] transition-colors disabled:hover:bg-white disabled:cursor-default"
-            disabled={!onLeadClick}
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-foreground truncate" style={{ fontWeight: 500 }}>
-                  {row.lead.name}
-                </p>
-                <p className="text-[10px] text-[#9b9a97] truncate" style={{ fontWeight: 400 }}>
-                  {row.lead.company}
-                </p>
-              </div>
-              <span className="text-[9px] px-1.5 py-px rounded border border-[#e9e9e7] text-[#6b6a67]" style={{ fontWeight: 500 }}>
-                {row.delivery}
-              </span>
-              <span className="text-[9px] text-[#9b9a97] min-w-[92px] text-right" style={{ fontWeight: 400 }}>
-                {row.reply}
-              </span>
+      <div className="px-3.5 py-3">
+        {email.status === "sent" && isLaunched ? (
+          <div className="flex items-center gap-4 text-[11px] tabular-nums">
+            <div>
+              <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Sent</p>
+              <p className="text-[14px] text-foreground" style={{ fontWeight: 600 }}>{email.sentCount ?? 0}</p>
             </div>
-          </button>
-        ))}
+            <div>
+              <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Opened</p>
+              <p className="text-[14px] text-foreground" style={{ fontWeight: 600 }}>{email.openRate ?? 0}%</p>
+            </div>
+            <div>
+              <p className="text-[9px] text-[#9b9a97] mb-0.5" style={{ fontWeight: 500 }}>Clicked</p>
+              <p className="text-[14px] text-foreground" style={{ fontWeight: 600 }}>{email.clickRate ?? 0}%</p>
+            </div>
+          </div>
+        ) : email.status === "scheduled" ? (
+          <p className="text-[11px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
+            Scheduled · {email.scheduledFor ?? "Recipient local window"}
+          </p>
+        ) : (
+          <p className="text-[11px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
+            Pending · Awaiting prior step outcomes
+          </p>
+        )}
       </div>
     </div>
   );
@@ -968,94 +1029,8 @@ function EmailCard({
 
       {expanded && (
         <div className="px-5 pb-4 pl-12 animate-in fade-in duration-200 space-y-3">
-          {isLaunched ? leadDeliveryPanel : promptPanel}
-          {isLaunched ? promptPanel : leadDeliveryPanel}
-
-          {isLaunched && (
-            <>
-              <div className="border border-[#e9e9e7] rounded-xl overflow-hidden bg-white">
-                <div className="px-3.5 py-2.5 border-b border-[#e9e9e7] bg-[#fafaf9]">
-                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Email history</p>
-                </div>
-                <div className="divide-y divide-[#f0f0ee]">
-                  {emailHistory.map((event) => (
-                    <div key={`${event.time}-${event.event}`} className="px-3.5 py-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-[10px] text-foreground" style={{ fontWeight: 500 }}>
-                          {event.event}
-                        </p>
-                        <p className="text-[9px] text-[#9b9a97]" style={{ fontWeight: 400 }}>
-                          {event.time}
-                        </p>
-                      </div>
-                      <p className="text-[10px] text-[#6b6a67] mt-0.5" style={{ fontWeight: 400 }}>
-                        {event.detail}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                <div className="border border-[#e9e9e7] rounded-xl overflow-hidden bg-white">
-                  <div className="px-3.5 py-2.5 border-b border-[#e9e9e7] bg-[#fafaf9]">
-                    <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Workflow context</p>
-                  </div>
-                  <div className="px-3.5 py-2.5 space-y-1.5">
-                    {workflowContext.map((item) => (
-                      <p key={item} className="text-[10px] text-[#6b6a67]" style={{ fontWeight: 400, lineHeight: 1.55 }}>
-                        • {item}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border border-[#e9e9e7] rounded-xl overflow-hidden bg-white">
-                  <div className="px-3.5 py-2.5 border-b border-[#e9e9e7] bg-[#fafaf9]">
-                    <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Agent activity</p>
-                  </div>
-                  <div className="px-3.5 py-2.5 space-y-2">
-                    {agentActivity.map((activity) => (
-                      <div key={activity.title} className="border border-[#efefec] rounded-lg px-2.5 py-2 bg-[#fcfcfb]">
-                        <p className="text-[10px] text-foreground" style={{ fontWeight: 500 }}>{activity.title}</p>
-                        <p className="text-[10px] text-[#6b6a67] mt-0.5" style={{ fontWeight: 400, lineHeight: 1.55 }}>
-                          {activity.detail}
-                        </p>
-                        {activity.insight && (
-                          <p className="text-[10px] text-blue-700 mt-1" style={{ fontWeight: 500, lineHeight: 1.55 }}>
-                            AI insight: {activity.insight}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="border border-[#e9e9e7] rounded-xl overflow-hidden bg-white">
-                <div className="px-3.5 py-2.5 border-b border-[#e9e9e7] bg-[#fafaf9]">
-                  <p className="text-[10px] text-[#9b9a97]" style={{ fontWeight: 500 }}>Transcript</p>
-                </div>
-                <div className="px-3.5 py-2.5 space-y-2">
-                  {transcript.map((item, idx) => (
-                    <div
-                      key={`${item.speaker}-${idx}`}
-                      className={`max-w-[92%] rounded-lg px-2.5 py-2 border ${
-                        item.speaker === "Agent"
-                          ? "ml-0 bg-[#f8fafc] border-[#dbeafe]"
-                          : "ml-auto bg-[#fafaf9] border-[#e9e9e7]"
-                      }`}
-                    >
-                      <p className="text-[9px] text-[#9b9a97]" style={{ fontWeight: 500 }}>{item.speaker}</p>
-                      <p className="text-[10px] text-foreground mt-0.5" style={{ fontWeight: 400, lineHeight: 1.55 }}>
-                        {item.line}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+          {isLaunched && deliveryMetricsPanel}
+          {promptPanel}
         </div>
       )}
     </div>

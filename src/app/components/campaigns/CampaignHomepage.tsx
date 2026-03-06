@@ -257,8 +257,8 @@ export function CampaignHomepage({
             </div>
           )}
 
-          {/* Qualification Funnel (always visible) */}
-          <div className="mt-8 border border-[#e9e9e7] rounded-xl p-4">
+          {/* Qualification Funnel (only when campaigns are active) */}
+          {state === "dense" && <div className="mt-8 border border-[#e9e9e7] rounded-xl p-4">
             <div className="flex items-center gap-2 mb-4">
               <HugeiconsIcon icon={FlashIcon} size={13} className="text-foreground/40" />
               <p className="text-[12px] text-foreground" style={{ fontWeight: 500 }}>
@@ -288,7 +288,7 @@ export function CampaignHomepage({
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

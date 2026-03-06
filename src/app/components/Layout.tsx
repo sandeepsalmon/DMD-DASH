@@ -1,6 +1,9 @@
 import { Outlet } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { LayoutPanelProvider, useLayoutPanels } from "./LayoutPanelContext";
+import { AiAssistantProvider } from "./ai-assistant/AiAssistantContext";
+import { AiAssistantButton } from "./ai-assistant/AiAssistantButton";
+import { AiAssistantPanel } from "./ai-assistant/AiAssistantPanel";
 
 function LayoutInner() {
   const { leftPanel, rightPanel } = useLayoutPanels();
@@ -18,8 +21,12 @@ function LayoutInner() {
         )}
 
         {/* Center floating panel */}
-        <div className="flex-1 flex min-w-0 bg-white rounded-xl shadow-sm border border-black/[0.04] overflow-hidden">
-          <Outlet />
+        <div className="flex-1 flex min-w-0 bg-white rounded-xl shadow-sm border border-black/[0.04] overflow-hidden relative">
+          <div className="flex-1 flex min-w-0 overflow-hidden">
+            <Outlet />
+          </div>
+          <AiAssistantPanel />
+          <AiAssistantButton />
         </div>
 
         {/* Right panel — transparent, no bg */}
@@ -36,7 +43,9 @@ function LayoutInner() {
 export function Layout() {
   return (
     <LayoutPanelProvider>
-      <LayoutInner />
+      <AiAssistantProvider>
+        <LayoutInner />
+      </AiAssistantProvider>
     </LayoutPanelProvider>
   );
 }

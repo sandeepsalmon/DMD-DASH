@@ -1,103 +1,9 @@
 import { useNavigate } from "react-router";
 import { Search, Plus, MoreVertical, Mic, Keyboard, ArrowUpRight } from "lucide-react";
+import { AGENTS } from "./agents/agentData";
+import type { ConversationalAgent } from "./agents/agentData";
 
-interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  status: "active" | "disabled";
-  channels: ("voice" | "chat")[];
-  accentColor: string;
-  stats: {
-    interactions: string;
-    engagement: string;
-    interactionsTrend?: string;
-    interactionsChange?: string;
-    engagementTrend?: string;
-    engagementChange?: string;
-  };
-  path?: string;
-}
-
-const agents: Agent[] = [
-  {
-    id: "website-agent-1",
-    name: "Website Agent",
-    description: "",
-    status: "active",
-    channels: ["voice", "chat"],
-    accentColor: "#E8455A",
-    stats: {
-      interactions: "1264",
-      engagement: "12.58%",
-      interactionsTrend: "+445",
-      interactionsChange: "↑54.33%",
-      engagementTrend: "+2.67",
-      engagementChange: "↑26.94%",
-    },
-    path: "/email-agent",
-  },
-  {
-    id: "website-agent-2",
-    name: "Website Agent",
-    description: "Helps prospects to understand your product from the website",
-    status: "active",
-    channels: ["voice"],
-    accentColor: "#E8455A",
-    stats: {
-      interactions: "1264",
-      engagement: "12.58%",
-    },
-  },
-  {
-    id: "website-agent-3",
-    name: "Website Agent",
-    description: "Helps prospects to understand your product from the website",
-    status: "disabled",
-    channels: ["voice", "chat"],
-    accentColor: "#9b9a97",
-    stats: {
-      interactions: "1264",
-      engagement: "12.58%",
-    },
-  },
-  {
-    id: "website-agent-4",
-    name: "Website Agent",
-    description: "Helps prospects to understand your product from the website",
-    status: "active",
-    channels: ["voice"],
-    accentColor: "#E8455A",
-    stats: {
-      interactions: "1264",
-      engagement: "12.58%",
-    },
-  },
-  {
-    id: "website-agent-5",
-    name: "Website Agent",
-    description: "Helps prospects to understand your product from the website",
-    status: "disabled",
-    channels: ["voice", "chat"],
-    accentColor: "#9b9a97",
-    stats: {
-      interactions: "1264",
-      engagement: "12.58%",
-    },
-  },
-  {
-    id: "website-agent-6",
-    name: "Website Agent",
-    description: "Helps prospects to understand your product from the website",
-    status: "active",
-    channels: ["voice"],
-    accentColor: "#E8455A",
-    stats: {
-      interactions: "1264",
-      engagement: "12.58%",
-    },
-  },
-];
+const agents = AGENTS;
 
 export function ConversationalAgentsPage() {
   const navigate = useNavigate();
@@ -253,6 +159,12 @@ export function ConversationalAgentsPage() {
                   style={{ fontWeight: 600 }}
                 >
                   {agent.name}
+                </p>
+                <p
+                  className="text-[11px] mb-1"
+                  style={{ fontWeight: 500, color: agent.accentColor }}
+                >
+                  {agent.role}
                 </p>
 
                 {/* Description */}

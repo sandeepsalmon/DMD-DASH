@@ -1,14 +1,20 @@
 import { IconFromKey } from "../../icons";
 import { ACTIVITY_LOG } from "../../types";
+import type { CampaignData } from "../../campaignData";
 
-export function ActivityArtifact() {
+interface Props {
+  campaignData?: CampaignData;
+}
+
+export function ActivityArtifact({ campaignData }: Props) {
+  const activityLog = campaignData?.activityLog ?? ACTIVITY_LOG;
   return (
     <div className="flex-1 overflow-y-auto px-5 py-4">
       <div className="relative pl-5">
         {/* Vertical timeline line */}
         <div className="absolute left-[5px] top-2 bottom-2 w-px bg-[#e9e9e7]" />
         <div className="space-y-0">
-          {ACTIVITY_LOG.map((item, i) => {
+          {activityLog.map((item, i) => {
             const isHighlight = item.icon === "calendar" || item.icon === "checkmark";
             return (
               <div key={i} className="relative flex items-start gap-3 py-2.5 group">
