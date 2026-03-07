@@ -33,12 +33,26 @@ const suggestedCampaigns: SuggestedCampaignContext[] = [
     stats: "47 leads · Last Thursday",
     source: "Based on HubSpot event data",
   },
+  {
+    title: "Win Back Churned Accounts",
+    description:
+      "12 accounts churned in the last 90 days. 5 had usage spikes before cancellation.",
+    stats: "12 accounts · $92K lost ARR",
+    source: "Based on billing + usage data",
+  },
+  {
+    title: "Nurture Conference Leads",
+    description:
+      "68 badge scans from SaaStr Annual. 23 visited your booth and left contact info.",
+    stats: "68 leads · 2 weeks ago",
+    source: "Based on event + CRM data",
+  },
 ];
 
 interface ActiveCampaignCard {
   slug: string;
   name: string;
-  status: "Live" | "Paused" | "Ramping";
+  status: "Live" | "Paused";
   statusColor: string;
   startLabel: string;
   leads: number;
@@ -52,7 +66,7 @@ interface ActiveCampaignCard {
 const ACTIVE_CAMPAIGNS: ActiveCampaignCard[] = [
   { slug: "reengage-pipeline", name: "Re-engage Stalled Pipeline Deals", status: "Live", statusColor: "#22B07D", startLabel: "Day 3", leads: 34, segments: 3, emailsSent: 44, openRate: "68%", pipeline: "$84K", meetings: 3 },
   { slug: "webinar-followup", name: "Webinar Follow-Up: Security Summit", status: "Live", statusColor: "#22B07D", startLabel: "Day 5", leads: 47, segments: 3, emailsSent: 94, openRate: "51%", pipeline: "$62K", meetings: 5 },
-  { slug: "trial-nurture", name: "Product-Led Trial Nurture", status: "Ramping", statusColor: "#5B8DEF", startLabel: "Day 2", leads: 128, segments: 3, emailsSent: 256, openRate: "31%", pipeline: "$41K", meetings: 8 },
+  { slug: "trial-nurture", name: "Product-Led Trial Nurture", status: "Live", statusColor: "#22B07D", startLabel: "Day 2", leads: 128, segments: 3, emailsSent: 256, openRate: "31%", pipeline: "$41K", meetings: 8 },
   { slug: "enterprise-upsell", name: "Enterprise Expansion Upsell", status: "Paused", statusColor: "#E8A600", startLabel: "Day 12", leads: 22, segments: 3, emailsSent: 66, openRate: "45%", pipeline: "$210K", meetings: 4 },
   { slug: "competitive-displacement", name: "Competitive Displacement (Acme)", status: "Live", statusColor: "#22B07D", startLabel: "Day 1", leads: 19, segments: 3, emailsSent: 38, openRate: "53%", pipeline: "$97K", meetings: 2 },
 ];
@@ -72,12 +86,22 @@ const ACTIVE_QUICK_STATS = [
 ];
 
 const ACTION_INSIGHTS = [
-  { icon: "fire", text: "Re-engage Pipeline: 17.6% lead-to-meeting conversion (2.9x above benchmark) — expand audience to 40 similar stalled deals in HubSpot." },
-  { icon: "target", text: "Webinar Follow-Up: 6 Q&A participants opened but haven't booked — switch CTA from Case Study to personalized demo invite." },
-  { icon: "sparkle", text: "Trial Nurture: API playground users convert 3.2x more than average — route 12 power users hitting plan limits to direct AE booking." },
-  { icon: "alert", text: "Enterprise Upsell: paused 9 days, but Laura Martinez (ICP 86) and 2 others showing renewed pricing activity — resume with refreshed copy." },
-  { icon: "analytics", text: "Competitive Displacement: 53% open rate is highest across all campaigns — clone this subject line pattern for Re-engage Pipeline Segment C." },
-  { icon: "calendar", text: "Chris Park (Trial Nurture): daily active user for 6 of 7 trial days, exploring webhooks, hasn't upgraded — escalate to AE this week." },
+  {
+    icon: "fire",
+    title: "4 leads opening but not clicking",
+    text: "Re-engage Pipeline: Dave Kim, Mike Ross, Lisa Park, and Wei Zhang are opening emails but not clicking CTAs. Switching to Reply Prompt CTA could recover these.",
+    action: "Switch CTAs for 4 leads",
+    slug: "reengage-pipeline",
+    prompt: "Switch the CTA for Dave Kim, Mike Ross, Lisa Park, and Wei Zhang from Case Study to Reply Prompt — they're opening but not clicking. Apply this to their next scheduled email.",
+  },
+  {
+    icon: "alert",
+    title: "Enterprise Upsell paused — 3 leads active",
+    text: "Laura Martinez, Stephanie Adams, and Richard Nguyen have been visiting pricing pages since campaign paused 9 days ago. Resume with refreshed copy before renewal windows close.",
+    action: "Resume campaign",
+    slug: "enterprise-upsell",
+    prompt: "Resume the Enterprise Upsell campaign with refreshed copy for the 3 leads showing renewed pricing activity — Laura Martinez, Stephanie Adams, and Richard Nguyen. Coordinate with CSM before sending to Laura.",
+  },
 ];
 
 export function EmailAgentPage() {
@@ -90,6 +114,8 @@ export function EmailAgentPage() {
     useState<SuggestedCampaignContext | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [selectedCampaignSlug, setSelectedCampaignSlug] = useState<string>("reengage-pipeline");
+  const [insightPrompt, setInsightPrompt] = useState<string | null>(null);
+  const [dismissedInsights, setDismissedInsights] = useState<Set<number>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSuggestedCampaignClick = (campaign: SuggestedCampaignContext) => {
@@ -117,7 +143,17 @@ export function EmailAgentPage() {
   };
 
   const handleGoHome = () => {
+    setInsightPrompt(null);
     setCampaignView("homepage");
+  };
+
+  const handleInsightAction = (slug: string, prompt: string) => {
+    setCampaignEntryMode("new");
+    setSelectedSuggestedCampaign(null);
+    setCampaignModeInitialState("running");
+    setSelectedCampaignSlug(slug);
+    setInsightPrompt(prompt);
+    setCampaignView("campaign-mode");
   };
 
   const handleCampaignLaunched = () => {
@@ -147,6 +183,7 @@ export function EmailAgentPage() {
         onboardingMode={campaignEntryMode}
         suggestedCampaign={selectedSuggestedCampaign}
         campaignSlug={selectedCampaignSlug}
+        initialChatPrompt={insightPrompt}
       />
     );
   }
@@ -258,6 +295,52 @@ export function EmailAgentPage() {
             ))}
           </div>
 
+          {/* AI Insights (right after stats) */}
+          {homepageState === "dense" && (() => {
+            const visible = ACTION_INSIGHTS.filter((_, i) => !dismissedInsights.has(i));
+            if (visible.length === 0) return null;
+            return (
+              <div className="mb-6 space-y-2">
+                {ACTION_INSIGHTS.map((insight, i) => {
+                  if (dismissedInsights.has(i)) return null;
+                  return (
+                    <div key={i} className="border border-[#e9e9e7] rounded-xl p-4 bg-white">
+                      <div className="flex items-start gap-3">
+                        <span className="mt-0.5 shrink-0 text-foreground/40">
+                          <IconFromKey iconKey={insight.icon} size={13} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] text-foreground mb-1" style={{ fontWeight: 600 }}>
+                            {insight.title}
+                          </p>
+                          <p className="text-[11px] text-[#9b9a97] mb-3" style={{ fontWeight: 400, lineHeight: 1.5 }}>
+                            {insight.text}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleInsightAction(insight.slug, insight.prompt)}
+                              className="text-[11px] px-3 py-1.5 rounded-lg bg-foreground text-white hover:opacity-90 transition-opacity"
+                              style={{ fontWeight: 500 }}
+                            >
+                              {insight.action}
+                            </button>
+                            <button
+                              onClick={() => setDismissedInsights((prev) => new Set(prev).add(i))}
+                              className="text-[11px] px-2.5 py-1.5 rounded-lg border border-[#e9e9e7] text-[#9b9a97] hover:text-foreground hover:bg-[#f7f7f5] transition-colors"
+                              style={{ fontWeight: 500 }}
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {/* Chat Input */}
           <div className="border border-[#e9e9e7] rounded-lg flex items-end gap-1 px-3 py-2 focus-within:border-foreground/20 transition-colors bg-white mb-6">
             <button className="w-6 h-6 flex items-center justify-center shrink-0 text-[#9b9a97] hover:text-foreground/60 transition-colors">
@@ -281,7 +364,7 @@ export function EmailAgentPage() {
             </button>
           </div>
 
-          {/* Active Campaigns (dense state only) */}
+          {/* Active Campaigns + Create New (dense state only) */}
           {homepageState === "dense" && (
             <div className="mb-6">
               <p
@@ -336,18 +419,36 @@ export function EmailAgentPage() {
                     </div>
                   </button>
                 ))}
+
+                {/* Create New Campaign Card — inside active grid */}
+                <button
+                  onClick={handleCreateNewCampaignClick}
+                  className="w-full text-left rounded-xl border-[1.5px] border-dashed border-[#e9e9e7] p-4 flex flex-col items-center justify-center hover:border-[#c8c8c6] hover:bg-[#fafaf9] transition-colors min-h-[140px]"
+                >
+                  <Plus size={18} strokeWidth={1.5} className="text-[#9b9a97] mb-2" />
+                  <span className="text-[12px] text-foreground" style={{ fontWeight: 500 }}>
+                    Create Campaign
+                  </span>
+                  <p className="text-[10px] text-[#9b9a97] mt-1 text-center" style={{ fontWeight: 400, lineHeight: 1.4 }}>
+                    Describe what you want to do
+                  </p>
+                </button>
               </div>
             </div>
           )}
 
-          {/* Suggested Campaigns — filter out already-active ones */}
+          {/* Suggested Campaigns */}
           {(() => {
             const activeTitles = ACTIVE_CAMPAIGNS.map((c) => c.name);
             const available = homepageState === "dense"
-              ? suggestedCampaigns.filter((c) => !activeTitles.includes(c.title))
-              : suggestedCampaigns;
+              ? suggestedCampaigns.filter((c) => !activeTitles.includes(c.title)).slice(0, 2)
+              : suggestedCampaigns.slice(0, 2);
 
-            return available.length > 0 ? (
+            if (available.length === 0) return null;
+
+            const isDense = homepageState === "dense";
+
+            return (
               <>
                 <p
                   className="text-[11px] text-[#9b9a97] uppercase tracking-wider mb-3"
@@ -355,7 +456,7 @@ export function EmailAgentPage() {
                 >
                   Suggested Campaigns
                 </p>
-                <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className={`grid gap-3 mb-3 ${isDense ? "grid-cols-2" : "grid-cols-3"}`}>
                   {available.map((campaign) => (
                     <button
                       key={campaign.title}
@@ -363,96 +464,73 @@ export function EmailAgentPage() {
                       className="campaign-card-glow group text-left p-[1.5px] transition-transform hover:scale-[1.01] active:scale-[0.99]"
                     >
                       <div className="glow-spinner" />
-                      <div className="relative bg-white rounded-[10.5px] p-4 h-full flex flex-col z-10">
-                        <div className="flex items-center gap-1.5 mb-2">
+                      <div className={`relative bg-white rounded-[10.5px] h-full flex flex-col z-10 ${isDense ? "p-3" : "p-4"}`}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
                           <HugeiconsIcon
                             icon={SparklesIcon}
-                            size={12}
+                            size={11}
                             className="text-foreground/40 shrink-0"
                           />
                           <span
-                            className="text-[13px] text-foreground leading-tight"
+                            className={`text-foreground leading-tight ${isDense ? "text-[12px]" : "text-[13px]"}`}
                             style={{ fontWeight: 500 }}
                           >
                             {campaign.title}
                           </span>
                         </div>
-                        <p
-                          className="text-[12px] text-[#9b9a97] mb-3"
-                          style={{ fontWeight: 400, lineHeight: 1.5 }}
-                        >
-                          {campaign.description}
-                        </p>
-                        <div className="mt-auto">
+                        {!isDense && (
                           <p
-                            className="text-[11px] text-foreground/80 mb-1"
+                            className="text-[12px] text-[#9b9a97] mb-3"
+                            style={{ fontWeight: 400, lineHeight: 1.5 }}
+                          >
+                            {campaign.description}
+                          </p>
+                        )}
+                        <div className={isDense ? "" : "mt-auto"}>
+                          <p
+                            className={`text-foreground/80 ${isDense ? "text-[10px]" : "text-[11px] mb-1"}`}
                             style={{ fontWeight: 500 }}
                           >
                             {campaign.stats}
                           </p>
-                          <p
-                            className="text-[10px] text-[#9b9a97]"
-                            style={{ fontWeight: 400 }}
-                          >
-                            {campaign.source}
-                          </p>
+                          {!isDense && (
+                            <p
+                              className="text-[10px] text-[#9b9a97]"
+                              style={{ fontWeight: 400 }}
+                            >
+                              {campaign.source}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </button>
                   ))}
 
-                  {/* Create New Campaign Card */}
-                  <button
-                    onClick={handleCreateNewCampaignClick}
-                    className="group text-left rounded-xl border-[1.5px] border-dashed border-[#e9e9e7] p-4 flex flex-col hover:border-[#c8c8c6] hover:bg-[#fafaf9] transition-colors"
-                  >
-                    <span
-                      className="text-[13px] text-foreground mb-2"
-                      style={{ fontWeight: 500 }}
+                  {/* Create New Campaign Card — only in empty state */}
+                  {!isDense && (
+                    <button
+                      onClick={handleCreateNewCampaignClick}
+                      className="group text-left rounded-xl border-[1.5px] border-dashed border-[#e9e9e7] p-4 flex flex-col hover:border-[#c8c8c6] hover:bg-[#fafaf9] transition-colors"
                     >
-                      + Create New Campaign
-                    </span>
-                    <p
-                      className="text-[12px] text-[#9b9a97]"
-                      style={{ fontWeight: 400, lineHeight: 1.5 }}
-                    >
-                      Describe what you want to do, and we'll build it together.
-                    </p>
-                  </button>
+                      <span
+                        className="text-[13px] text-foreground mb-2"
+                        style={{ fontWeight: 500 }}
+                      >
+                        + Create New Campaign
+                      </span>
+                      <p
+                        className="text-[12px] text-[#9b9a97]"
+                        style={{ fontWeight: 400, lineHeight: 1.5 }}
+                      >
+                        Describe what you want to do, and we'll build it together.
+                      </p>
+                    </button>
+                  )}
                 </div>
               </>
-            ) : null;
+            );
           })()}
 
-          {/* AI Insights */}
-          {homepageState === "dense" && (
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <HugeiconsIcon icon={SparklesIcon} size={12} className="text-foreground/40" />
-                <p
-                  className="text-[11px] text-[#9b9a97] uppercase tracking-wider"
-                  style={{ fontWeight: 500 }}
-                >
-                  AI Insights
-                </p>
-              </div>
-              <div className="space-y-2">
-                {ACTION_INSIGHTS.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-[#fafaf9] transition-colors">
-                    <span className="mt-px shrink-0 text-foreground/30">
-                      <IconFromKey iconKey={item.icon} size={12} />
-                    </span>
-                    <p
-                      className="text-[12px] text-foreground flex-1"
-                      style={{ fontWeight: 400, lineHeight: 1.5 }}
-                    >
-                      {item.text}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

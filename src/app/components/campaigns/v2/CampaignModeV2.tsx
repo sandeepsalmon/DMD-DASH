@@ -18,6 +18,7 @@ interface Props {
   onboardingMode?: "new" | "suggested";
   suggestedCampaign?: SuggestedCampaignContext | null;
   campaignSlug?: string;
+  initialChatPrompt?: string | null;
 }
 
 export function CampaignModeV2({
@@ -27,6 +28,7 @@ export function CampaignModeV2({
   onboardingMode = "new",
   suggestedCampaign = null,
   campaignSlug = "reengage-pipeline",
+  initialChatPrompt = null,
 }: Props) {
   const { state, selectedAgentId, handleStart, handleAgentSelected, handleApproveAndLaunch } =
     useCampaignState(initialState);
@@ -34,7 +36,7 @@ export function CampaignModeV2({
   const campaignData = getCampaignData(campaignSlug);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [leadsExpandOpen, setLeadsExpandOpen] = useState(false);
-  const [chatPreFill, setChatPreFill] = useState("");
+  const [chatPreFill, setChatPreFill] = useState(initialChatPrompt ?? "");
   const [activeTab, setActiveTab] = useState<RightPanelTab>("overview");
   const [isPaused, setIsPaused] = useState(false);
   const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false);
