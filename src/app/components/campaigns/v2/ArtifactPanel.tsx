@@ -7,6 +7,7 @@ import {
   Settings01Icon,
   Delete02Icon,
   Cancel01Icon,
+  MailSend01Icon,
 } from "../icons";
 import {
   DropdownMenu,
@@ -67,7 +68,8 @@ export function ArtifactPanel({
 
   const currentTab = controlledTab ?? internalTab;
   const isLaunched = campaignState === "launched" || campaignState === "running";
-  const hasEmails = campaignState === "plan-ready" || isLaunched;
+  const hasEmails = campaignState !== "initial";
+  const isPlanReady = campaignState === "plan-ready" || isLaunched;
   const hasLeads = campaignState !== "initial";
 
   const tabs: { key: RightPanelTab; label: string }[] = [
@@ -185,10 +187,29 @@ export function ArtifactPanel({
       <div className="flex-1 overflow-hidden flex flex-col">
         {resolvedTab === "overview" && <OverviewTab campaignState={campaignState} onExplainInChat={onExplainInChat} campaignData={campaignData} />}
         {resolvedTab === "emails" && hasEmails && (
-          <EmailPlanArtifact campaignState={campaignState} marketingAgentCreated={marketingAgentCreated} onLeadClick={onLeadClick} campaignData={campaignData} connectedAgentId={connectedAgentId} />
+          isPlanReady ? (
+            <EmailPlanArtifact campaignState={campaignState} marketingAgentCreated={marketingAgentCreated} onLeadClick={onLeadClick} campaignData={campaignData} connectedAgentId={connectedAgentId} />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+              <div className="w-10 h-10 rounded-full bg-[#f4f4f2] flex items-center justify-center mb-3">
+                <HugeiconsIcon icon={MailSend01Icon} size={16} className="text-[#9b9a97]" />
+              </div>
+              <p className="text-[13px] text-foreground mb-1" style={{ fontWeight: 500 }}>No emails yet</p>
+              <p className="text-[11px] text-[#9b9a97] mb-4 max-w-[260px]" style={{ fontWeight: 400, lineHeight: 1.5 }}>
+                Emails will be generated when the agent plan is ready, or you can create them manually.
+              </p>
+              <button
+                onClick={() => toast.info("Manual email creation coming soon")}
+                className="text-[11px] px-3.5 py-1.5 rounded-lg border border-[#e9e9e7] bg-white hover:bg-[#f7f7f5] transition-colors"
+                style={{ fontWeight: 500 }}
+              >
+                Create email manually
+              </button>
+            </div>
+          )
         )}
         {resolvedTab === "leads" && hasLeads && (
-          <LeadsArtifact onLeadClick={onLeadClick} onExpandLeads={onExpandLeads} onAccountClick={onAccountClick} campaignData={campaignData} />
+          <LeadsArtifact onLeadClick={onLeadClick} onExpandLeads={onExpandLeads} onAccountClick={onAccountClick} campaignData={campaignData} campaignState={campaignState} />
         )}
       </div>
 
@@ -322,7 +343,7 @@ function SourcesConfigModal({
                 </button>
               </div>
               {/* Conversational Agents as data source */}
-              <div className="border border-[#e9e9e7] rounded-xl bg-white overflow-hidden">
+              <div className="border border-[#e9e9e7] rounded-xl bg-white">
                 <div className="flex items-center gap-3 px-3.5 py-3">
                   <div className="w-5 h-5 rounded bg-[#8b5cf6]/10 flex items-center justify-center shrink-0">
                     <span className="text-[10px]" style={{ fontWeight: 700, color: "#8b5cf6" }}>A</span>
@@ -337,7 +358,7 @@ function SourcesConfigModal({
                     </span>
                   )}
                 </div>
-                <div className="px-3.5 pb-3">
+                <div className="px-3.5 pb-3 relative">
                   <AgentMultiSelect
                     selectedIds={agentIds}
                     onChange={handleAgentChange}

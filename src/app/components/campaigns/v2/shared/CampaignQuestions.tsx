@@ -19,6 +19,7 @@ export interface CampaignQuestion {
   question: string;
   options: QuestionOption[];
   allowCustom?: boolean;
+  multiSelect?: boolean;
 }
 
 export const CAMPAIGN_QUESTIONS: CampaignQuestion[] = [
@@ -83,6 +84,18 @@ export const CAMPAIGN_QUESTIONS: CampaignQuestion[] = [
     allowCustom: true,
   },
   {
+    id: "exit-criteria",
+    question: "When should a lead exit this campaign?",
+    options: [
+      { key: "A", label: "Meeting booked → Remove from sequence" },
+      { key: "B", label: "No engagement after 3 emails → Move to re-engage" },
+      { key: "C", label: "Replied with objection → Move to objection handling" },
+      { key: "D", label: "Unsubscribed → Remove permanently" },
+      { key: "E", label: "Assigned to AE → Pause automated emails" },
+    ],
+    multiSelect: true,
+  },
+  {
     id: "urgency",
     question: "How soon do you want to launch?",
     options: [
@@ -113,6 +126,7 @@ interface Props {
 export function CampaignQuestions({ onComplete, onSkipAll }: Props) {
   const [currentPage, setCurrentPage] = useState(0);
   const [answers, setAnswers] = useState<Record<string, { answer: string; isCustom: boolean }>>({});
+  const [multiSelections, setMultiSelections] = useState<Record<string, Set<string>>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [editingCustom, setEditingCustom] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -134,6 +148,29 @@ export function CampaignQuestions({ onComplete, onSkipAll }: Props) {
       [questionId]: { answer: option.label, isCustom: false },
     }));
     setEditingCustom(null);
+  };
+
+  const handleMultiToggle = (questionId: string, option: QuestionOption) => {
+    setMultiSelections((prev) => {
+      const current = new Set(prev[questionId] ?? []);
+      if (current.has(option.label)) {
+        current.delete(option.label);
+      } else {
+        current.add(option.label);
+      }
+      const next = { ...prev, [questionId]: current };
+      // Also update answers for the continue button
+      if (current.size > 0) {
+        setAnswers((a) => ({ ...a, [questionId]: { answer: [...current].join(", "), isCustom: false } }));
+      } else {
+        setAnswers((a) => {
+          const copy = { ...a };
+          delete copy[questionId];
+          return copy;
+        });
+      }
+      return next;
+    });
   };
 
   const handleCustomClick = (questionId: string) => {
@@ -278,28 +315,46 @@ export function CampaignQuestions({ onComplete, onSkipAll }: Props) {
 
         {/* Options */}
         <div className="space-y-1.5">
+          {currentQuestion.multiSelect && (
+            <p className="text-[11px] text-[#9b9a97] mb-1" style={{ fontWeight: 400 }}>Select all that apply</p>
+          )}
           {currentQuestion.options.map((opt) => {
-            const isSelected = answers[currentQuestion.id]?.answer === opt.label && !answers[currentQuestion.id]?.isCustom;
+            const isMulti = currentQuestion.multiSelect;
+            const isSelected = isMulti
+              ? (multiSelections[currentQuestion.id]?.has(opt.label) ?? false)
+              : answers[currentQuestion.id]?.answer === opt.label && !answers[currentQuestion.id]?.isCustom;
             return (
               <button
                 key={opt.key}
-                onClick={() => handleOptionSelect(currentQuestion.id, opt)}
+                onClick={() => isMulti ? handleMultiToggle(currentQuestion.id, opt) : handleOptionSelect(currentQuestion.id, opt)}
                 className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isSelected
-                    ? "bg-foreground text-white"
+                    ? isMulti ? "bg-foreground/5 border border-foreground/30 text-foreground" : "bg-foreground text-white"
                     : "bg-white border border-[#e9e9e7] hover:border-[#c8c8c6] hover:bg-[#f7f7f5] text-foreground"
                 }`}
               >
-                <span
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
-                    isSelected
-                      ? "bg-white/20 text-white"
-                      : "bg-[#f0f0ee] text-[#9b9a97]"
-                  }`}
-                  style={{ fontWeight: 600 }}
-                >
-                  {isSelected ? "✓" : ""}
-                </span>
+                {isMulti ? (
+                  <span
+                    className={`w-4 h-4 rounded flex items-center justify-center text-[10px] shrink-0 border transition-colors ${
+                      isSelected
+                        ? "bg-foreground border-foreground text-white"
+                        : "border-[#d6d6d3] bg-white"
+                    }`}
+                  >
+                    {isSelected ? "✓" : ""}
+                  </span>
+                ) : (
+                  <span
+                    className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-[#f0f0ee] text-[#9b9a97]"
+                    }`}
+                    style={{ fontWeight: 600 }}
+                  >
+                    {isSelected ? "✓" : ""}
+                  </span>
+                )}
                 <span className="text-[12px]" style={{ fontWeight: isSelected ? 500 : 400 }}>
                   {opt.label}
                 </span>

@@ -79,7 +79,7 @@ export function AgentMultiSelect({ selectedIds, onChange, disabled }: Props) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 border border-[#e9e9e7] rounded-xl bg-white shadow-lg z-20 overflow-hidden animate-in fade-in duration-150">
+        <div className="absolute top-full left-0 right-0 mt-1 border border-[#e9e9e7] rounded-xl bg-white shadow-lg z-[100] overflow-hidden animate-in fade-in duration-150">
           <div className="max-h-[220px] overflow-y-auto divide-y divide-[#f0f0ee]">
             {activeAgents.map((agent) => {
               const isSelected = selectedIds.includes(agent.id);

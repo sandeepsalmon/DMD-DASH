@@ -25,8 +25,8 @@ function LayoutInner() {
           <div className="flex-1 flex min-w-0 overflow-hidden">
             <Outlet />
           </div>
-          <AiAssistantPanel />
-          <AiAssistantButton />
+          {!leftPanel && <AiAssistantPanel />}
+          {!leftPanel && <AiAssistantButton />}
         </div>
 
         {/* Right panel — transparent, no bg */}

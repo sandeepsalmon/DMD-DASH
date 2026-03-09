@@ -21,6 +21,11 @@ export function OverviewTab({ campaignState, onExplainInChat, campaignData }: Pr
   const isLaunched = campaignState === "launched" || campaignState === "running";
   const isDay3 = campaignState === "running";
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [enabledSources, setEnabledSources] = useState<Record<string, boolean>>({
+    hubspot: true,
+    salesforce: false,
+    agents: false,
+  });
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
@@ -99,7 +104,7 @@ export function OverviewTab({ campaignState, onExplainInChat, campaignData }: Pr
         </div>
       )}
 
-      {/* Data Sources — pre-launch, collapsed */}
+      {/* Data Sources — pre-launch, toggleable */}
       {!isLaunched && (
         <div>
           <button onClick={() => setSourcesOpen(!sourcesOpen)} className="flex items-center gap-2 text-[11px] text-[#9b9a97] hover:text-foreground/70 transition-colors" style={{ fontWeight: 400 }}>
@@ -108,9 +113,25 @@ export function OverviewTab({ campaignState, onExplainInChat, campaignData }: Pr
             <HugeiconsIcon icon={ArrowDown01Icon} size={10} className={`transition-transform ${sourcesOpen ? "" : "rotate-[-90deg]"}`} />
           </button>
           {sourcesOpen && (
-            <div className="mt-2 pl-5 space-y-1 animate-in fade-in duration-200">
-              {data.overview.dataSources.map((s) => (
-                <p key={s} className="text-[11px] text-[#9b9a97]" style={{ fontWeight: 400 }}>{s}</p>
+            <div className="mt-2.5 space-y-2 animate-in fade-in duration-200">
+              {[
+                { key: "hubspot", label: "HubSpot", desc: "CRM, Pipeline, Contact Data", icon: <span className="inline-flex items-center justify-center w-5 h-5 rounded text-white text-[8px] shrink-0" style={{ background: "#ff7a59", fontWeight: 700 }}>H</span> },
+                { key: "salesforce", label: "Salesforce", desc: "Opportunities, Accounts, Activities", icon: <span className="inline-flex items-center justify-center w-5 h-5 rounded text-white text-[8px] shrink-0" style={{ background: "#00A1E0", fontWeight: 700 }}>S</span> },
+                { key: "agents", label: "Conversational Agents", desc: "Reply routing, lead qualification", icon: <span className="inline-flex items-center justify-center w-5 h-5 rounded text-[8px] shrink-0" style={{ background: "#8b5cf610", color: "#8b5cf6", fontWeight: 700 }}>A</span> },
+              ].map((source) => (
+                <div key={source.key} className="flex items-center gap-2.5 px-3 py-2.5 border border-[#e9e9e7] rounded-xl bg-white">
+                  {source.icon}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-foreground" style={{ fontWeight: 500 }}>{source.label}</p>
+                    <p className="text-[9px] text-[#9b9a97]" style={{ fontWeight: 400 }}>{source.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => setEnabledSources(prev => ({ ...prev, [source.key]: !prev[source.key] }))}
+                    className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 ${enabledSources[source.key] ? "bg-foreground" : "bg-[#d6d6d3]"}`}
+                  >
+                    <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all ${enabledSources[source.key] ? "left-[15px]" : "left-[2px]"}`} />
+                  </button>
+                </div>
               ))}
             </div>
           )}

@@ -5,7 +5,7 @@ import {
   Maximize02Icon,
   FireIcon,
 } from "../../icons";
-import type { Lead, Account } from "../../types";
+import type { Lead, Account, CampaignModeState } from "../../types";
 import { LEADS, getAccountsFromLeads } from "../../types";
 import type { CampaignData } from "../../campaignData";
 
@@ -50,6 +50,7 @@ interface Props {
   onExpandLeads: () => void;
   onAccountClick?: (accountName: string) => void;
   campaignData?: CampaignData;
+  campaignState?: CampaignModeState;
 }
 
 function getAccountsFromLeadsList(leads: Lead[]): Account[] {
@@ -75,27 +76,30 @@ function getAccountsFromLeadsList(leads: Lead[]): Account[] {
   return [...map.values()].sort((a, b) => b.score - a.score);
 }
 
-export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick, campaignData }: Props) {
+export function LeadsArtifact({ onLeadClick, onExpandLeads, onAccountClick, campaignData, campaignState }: Props) {
   const [leadsView, setLeadsView] = useState<LeadsView>("leads");
   const campaignLeads = campaignData?.leads ?? LEADS;
   const accounts = campaignData ? getAccountsFromLeadsList(campaignLeads) : getAccountsFromLeads();
 
+  const isLaunched = campaignState === "launched" || campaignState === "running";
   const totalLeads = campaignLeads.length;
   const meetingsBooked = campaignLeads.filter((l) => l.status === "meeting-booked").length;
   const highEngagement = campaignLeads.filter((l) => l.status === "high-engagement").length;
   const hotLeads = campaignLeads.filter((l) => l.scoreLevel === "hot").length;
 
+  const metrics = [
+    { label: "Total", value: totalLeads },
+    { label: "Hot", value: hotLeads },
+    ...(isLaunched ? [{ label: "Meetings", value: meetingsBooked }] : []),
+    { label: "High Engage", value: highEngagement },
+  ];
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Summary metrics */}
       <div className="px-5 pt-4 pb-2 shrink-0">
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: "Total", value: totalLeads },
-            { label: "Hot", value: hotLeads },
-            { label: "Meetings", value: meetingsBooked },
-            { label: "High Engage", value: highEngagement },
-          ].map((m) => (
+        <div className={`grid gap-2 ${isLaunched ? "grid-cols-4" : "grid-cols-3"}`}>
+          {metrics.map((m) => (
             <div key={m.label} className="border border-[#e9e9e7] rounded-lg px-2.5 py-2 bg-white text-center">
               <p className="text-[16px] text-foreground tabular-nums leading-none" style={{ fontWeight: 600 }}>{m.value}</p>
               <p className="text-[9px] text-[#9b9a97] mt-1" style={{ fontWeight: 500 }}>{m.label}</p>

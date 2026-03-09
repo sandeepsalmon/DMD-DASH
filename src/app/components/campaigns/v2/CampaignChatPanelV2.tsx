@@ -14,7 +14,7 @@ import { IconFromKey } from "../icons";
 import type { CampaignModeState, SuggestedCampaignContext } from "../types";
 import type { CampaignData } from "../campaignData";
 import { getAgentById } from "../../agents/agentData";
-import { AgentPicker } from "../../agents/AgentPicker";
+import { AgentDropdown } from "../../agents/AgentDropdown";
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
 import { Loader } from "@/components/prompt-kit/loader";
 import {
@@ -481,7 +481,7 @@ function CompactCampaignPlan({
             <p className="text-[10px] text-[#9b9a97] mb-2" style={{ fontWeight: 400 }}>
               Select an agent to qualify leads before AE handoff.
             </p>
-            <AgentPicker
+            <AgentDropdown
               selectedAgentId={selectedAgentId ?? null}
               onSelect={(id) => onSelectAgent?.(id)}
               disabled={!showDecision}
@@ -518,6 +518,7 @@ function getSuggestionsForState(
   if (state === "plan-ready") {
     if (demoStep === 0) return [
       { label: "Preview Emails" },
+      { label: "Edit Emails" },
       {
         label: "Approve & Launch",
         primary: true,
@@ -532,6 +533,7 @@ function getSuggestionsForState(
         tooltip:
           "Before launch: generate and validate all personalized drafts. After launch: send Step 1 now and schedule remaining steps by recipient local time.",
       },
+      { label: "Edit Emails" },
       { label: "Change CTAs" },
     ];
     return [];
@@ -981,6 +983,14 @@ const handlePipelineYes = () => {
       setPlanDemoStep(1);
       setTimeout(() => {
         setPostMessages((cur) => [...cur, { id: `${Date.now()}-d`, role: "docket", content: "Showing email previews in the panel →" }]);
+        onSwitchTab("emails");
+      }, 400);
+      return;
+    }
+    if (label === "Edit Emails") {
+      setPlanDemoStep(1);
+      setTimeout(() => {
+        setPostMessages((cur) => [...cur, { id: `${Date.now()}-d`, role: "docket", content: "Opening email editor. You can modify prompts, CTAs, and send timing for each step →" }]);
         onSwitchTab("emails");
       }, 400);
       return;
